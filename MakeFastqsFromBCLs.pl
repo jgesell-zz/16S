@@ -27,6 +27,7 @@ use Cwd qw(abs_path);
 use IPC::System::Simple qw(capture system);
 use threads;
 use XML::Hash;
+use Env;
 
 my $bclDir;
 my $sampleSheet;
@@ -460,7 +461,7 @@ sub getPhiXPercRaw {
 	my $threads = $_[3];
 	
 	#database shouldn't be hardcoded.
-	my $cmd = "bowtie2 -x /stornext/snfs7/cmmr/references/phix/phix -U $read1,$read2 --end-to-end --very-sensitive --reorder -p $threads -S /dev/null 2>Logs/$projectName.phixOverall.stats.txt";
+	my $cmd = "bowtie2 -x $ENV{'PHIXDB'} -U $read1,$read2 --end-to-end --very-sensitive --reorder -p $threads -S /dev/null 2>Logs/$projectName.phixOverall.stats.txt";
 	system($cmd);
 }
 
@@ -472,7 +473,7 @@ sub getPhiXPercBleed {
 	my $threads = $_[1];
 	my $projectName = $_[2];
 	#database shouldn't be hardcoded.
-	my $cmd = "bowtie2 -x /stornext/snfs7/cmmr/references/phix/phix -1 $workDir/Read1.fq -2 $workDir/Read2.fq --end-to-end --very-sensitive --reorder -p $threads -S /dev/null --un-conc $workDir/Reads.filtered.fq 2>Logs/$projectName.phix.bleed.stats";
+	my $cmd = "bowtie2 -x $ENV{'PHIXDB'} -1 $workDir/Read1.fq -2 $workDir/Read2.fq --end-to-end --very-sensitive --reorder -p $threads -S /dev/null --un-conc $workDir/Reads.filtered.fq 2>Logs/$projectName.phix.bleed.stats";
 	system($cmd);
 	$cmd = "rm $workDir/Read1.fq $workDir/Read2.fq";
 	system($cmd);
