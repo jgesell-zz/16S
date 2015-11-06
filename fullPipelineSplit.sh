@@ -155,4 +155,6 @@ chmod -R 777  ${READSDIR}/../../Deliverables;
 
 #return to working directory when script was launched
 cd $CURRWORKDIR;
+
+#exit without error status once completed
 exit 0;
