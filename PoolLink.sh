@@ -26,4 +26,4 @@ mkdir Logs;
 for i in `ls ../../StatsProject/16S/Pool${pool}/Logs/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Logs/$i Logs/$name; done;
 for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
 cd ${lastName}Pool${pool}WorkDir/Reads/;
-echo "~gesell/Programs/ToTest/fullPipelineSplit.sh" | qsub -l ncpus=20 -q batch -N ${lastName}Pool${pool}.Process -d `pwd -P` -V;
+echo "/users/gesell/Programs/gitHub/16S/fullPipelineSplit.sh" | qsub -l ncpus=20 -q batch -N ${lastName}Pool${pool}.Process -d `pwd -P` -V;
