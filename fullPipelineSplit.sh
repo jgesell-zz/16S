@@ -46,9 +46,9 @@ cat ${TMPDIR}/*.filteredStandard.fq > ${TMPDIR}/seqs.standard.fq &
 wait;
 
 #filter out phiX bleed
-bowtie2 -x /users/dpsmith/db/phix/bowtie2/phix -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1;
-bowtie2 -x /users/dpsmith/db/phix/bowtie2/phix -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1;
-bowtie2 -x /users/dpsmith/db/phix/bowtie2/phix -U ${TMPDIR}/seqs.standard.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.standard.filtered.fq -S /dev/null 2>&1;
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1;
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1;
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.standard.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.standard.filtered.fq -S /dev/null 2>&1;
 
 
 #construct the fastas for uparse
@@ -107,7 +107,7 @@ cat ${TMPDIR}/temp.fa >> ${TMPDIR}/Reads.fa;
 cat ${TMPDIR}/MergedStandard.fa >> ${TMPDIR}/Reads.fa
 
 #filter francisella
-usearch70 -usearch_global ${TMPDIR}/Reads.fa -db /users/dpsmith/db/Francisella/Francisella_V4.udb -strand both -id .968 -uc ${TMPDIR}/Francisella.uc -maxaccepts 0 -maxrejects 0 -threads ${THREADS};
+usearch70 -usearch_global ${TMPDIR}/Reads.fa -db ${FRANCISELLAV4} -strand both -id .968 -uc ${TMPDIR}/Francisella.uc -maxaccepts 0 -maxrejects 0 -threads ${THREADS};
 
 #remove francisella
 cat ${TMPDIR}/Francisella.uc | cut -f9,10 | grep -v "*$" | cut -f1 | cut -f1 -d " " > ${TMPDIR}/Remove;
