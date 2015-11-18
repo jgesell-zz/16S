@@ -12,11 +12,11 @@ cd ${firstName}${lastName}/Pool${pool};
 mkdir ${lastName}Pool${pool}WorkDir;
 mkdir ${lastName}Pool${pool}WorkDir/Reads;
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${lastName}" > ${lastName}Pool${pool}WorkDir/SampleList;
-for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/Reads/ | grep -f ${lastName}Pool${pool}WorkDir/SampleList | grep "bz2"`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/Reads/$i ${lastName}Pool${pool}WorkDir/Reads/$i; done;
 mkdir ${lastName}Pool${pool}Reads;
 mkdir ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}
 for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}Pool${pool}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/$i; done;
 for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/`; do name=`echo $i | sed "s:Pool${pool}:${lastName}Pool${pool}:g" | sed "s:Overall::g" | sed "s:ReagentTest::g" `; ln -s ../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/$i ${lastName}Pool${pool}Reads/$name; done;
+for i in `find ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/Sample_*/*.bz2`; do name=`echo $i | cut -f4 -d "/" | cut -f1 -d "_"`; num=`echo $i | cut -f6 -d "_" | cut -c2`; ln -s ../../${i} ${lastName}Pool${pool}WorkDir/Reads/${name}.${num}.fq.bz2; done
 mkdir ${lastName}Pool${pool}Barcodes;
 mkdir ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool};
 mkdir ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool}/Sample_${lastName}Pool${pool};
@@ -25,5 +25,5 @@ for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/ | grep -v "
 mkdir Logs;
 for i in `ls ../../StatsProject/16S/Pool${pool}/Logs/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Logs/$i Logs/$name; done;
 for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
-cd ${lastName}Pool${pool}WorkDir/Reads/;
-echo "/users/gesell/Programs/gitHub/16S/fullPipelineSplit.sh" | qsub -l ncpus=20 -q batch -N ${lastName}Pool${pool}.Process -d `pwd -P` -V;
+link=`readlink -e ${lastName}Pool${pool}WorkDir/Reads/;`
+echo "/users/gesell/Programs/gitHub/16S/fullPipelineSplit.sh $link 40" | qsub -l ncpus=20 -q batch -N ${lastName}Pool${pool}.Process -d `pwd -P` -V;

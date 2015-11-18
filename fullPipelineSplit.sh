@@ -13,14 +13,12 @@ fi
 
 
 if [ -d $(readlink -e $TMPDIR) ];
-	then 
-		echo "Temporary Directory: ${TMPDIR}";
-	else
-		echo "Temporary Directory does not exist";
+	then echo "Temporary Directory: ${TMPDIR}";
+	else echo "Temporary Directory does not exist";
 fi
 
 #go into Reads dir
-READSDIR=`readlink -e $READSDIR`;
+export READSDIR=`readlink -e $READSDIR`;
 cd ${READSDIR};
 export PROJECTID=`basename $(readlink -e ${READSDIR}/..) | sed 's/WorkDir//g'`;
 echo ${PROJECTID};
@@ -93,6 +91,7 @@ cat  ${READSDIR}/../split_libraries/{}.seqs.fna | grep "^>" | cut -f1 -d "_" | c
 perl ${WONGGITREPO}/16S_workflows/StatsComparisonMergedVsMapped.pl  ${READSDIR}/../Stats.{}Merge.MergedReads.txt  ${READSDIR}/../Stats.{}Merge.MappedReads.txt >  ${READSDIR}/../Stats.{}Merge.Combined.txt;
 tar -cvjf  ${READSDIR}/../uparse{}.tar.bz2 ${TMPDIR}/uparse{};
 ' &
+bigJob=`jobs -p`;
 
 ## construct the deliverables ##
 #set up francisella filter
@@ -104,7 +103,7 @@ cat ${TMPDIR}/Read1.fq ${TMPDIR}/Read2.fq > ${TMPDIR}/Reads.fq;
 fq2fa ${TMPDIR}/Reads.fq ${TMPDIR}/Reads.fa;
 usearch70 -fastq_mergepairs ${TMPDIR}/Read1.fq -reverse ${TMPDIR}/Read2.fq -fastaout ${TMPDIR}/temp.fa;
 cat ${TMPDIR}/temp.fa >> ${TMPDIR}/Reads.fa;
-cat ${TMPDIR}/MergedStandard.fa >> ${TMPDIR}/Reads.fa
+cat ${TMPDIR}/MergedStandard.fa >> ${TMPDIR}/Reads.fa;
 
 #filter francisella
 usearch70 -usearch_global ${TMPDIR}/Reads.fa -db ${FRANCISELLA}/Francisella_V4.udb -strand both -id .968 -uc ${TMPDIR}/Francisella.uc -maxaccepts 0 -maxrejects 0 -threads ${THREADS};
@@ -112,12 +111,11 @@ usearch70 -usearch_global ${TMPDIR}/Reads.fa -db ${FRANCISELLA}/Francisella_V4.u
 #remove francisella
 cat ${TMPDIR}/Francisella.uc | cut -f9,10 | grep -v "*$" | cut -f1 | cut -f1 -d " " > ${TMPDIR}/Remove;
 cat ${TMPDIR}/MergedStandard.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/TempMerged.fq &
-pidlist="$pidlist $!"
 cat ${TMPDIR}/Read1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp1.fq &
-pidlist="$pidlist $!"
 cat ${TMPDIR}/Read2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp2.fq &
-pidlist="$pidlist $!"
+for i in `jobs -p | grep -v $bigJob`; do pidlist=`echo -e "\`echo $pidlist\`\n\`echo  $((i + 1))\`"`; done
 wait $pidlist
+
 mv ${TMPDIR}/TempMerged.fq ${TMPDIR}/MergedStandard.fq;
 mv ${TMPDIR}/Temp1.fq ${TMPDIR}/Read1.fq;
 mv ${TMPDIR}/Temp2.fq ${TMPDIR}/Read2.fq;
