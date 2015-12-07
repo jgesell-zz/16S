@@ -6,24 +6,44 @@ firstName=$1;
 lastName=$2;
 pool=$3;
 
+#make the necessary directory structures
 mkdir ${firstName}${lastName};
 mkdir ${firstName}${lastName}/Pool${pool};
 cd ${firstName}${lastName}/Pool${pool};
 mkdir ${lastName}Pool${pool}WorkDir;
 mkdir ${lastName}Pool${pool}WorkDir/Reads;
-cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${lastName}" > ${lastName}Pool${pool}WorkDir/SampleList;
 mkdir ${lastName}Pool${pool}Reads;
 mkdir ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}
-for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}Pool${pool}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/$i; done;
-for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/`; do name=`echo $i | sed "s:Pool${pool}:${lastName}Pool${pool}:g" | sed "s:Overall::g" | sed "s:ReagentTest::g" `; ln -s ../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/$i ${lastName}Pool${pool}Reads/$name; done;
-for i in `find ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/Sample_*/*.bz2`; do name=`echo $i | cut -f4 -d "/" | cut -f1 -d "_"`; num=`echo $i | cut -f6 -d "_" | cut -c2`; ln -s ../../${i} ${lastName}Pool${pool}WorkDir/Reads/${name}.${num}.fq.bz2; done
 mkdir ${lastName}Pool${pool}Barcodes;
 mkdir ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool};
 mkdir ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool}/Sample_${lastName}Pool${pool};
-for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/Project_Pool${pool}/Sample_Pool${pool}/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/Project_Pool${pool}/Sample_Pool${pool}/$i ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool}/Sample_${lastName}Pool${pool}/$name; done;
-for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/ | grep -v "Project_Pool${pool}"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" | sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/$i ${lastName}Pool${pool}Barcodes/$name; done;
 mkdir Logs;
+
+#cat in the information for files that cannot be softlinked
+cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${lastName}" > ${lastName}Pool${pool}WorkDir/SampleList;
+cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${lastName}" > samplesheet.${lastName}Pool${pool}.csv
+
+#softlink the required demultiplexed reads into the Reads/Project_* directory
+for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}Pool${pool}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/$i; done;
+
+#softlink the other files in the master pool Reads directory
+for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/`; do name=`echo $i | sed "s:Pool${pool}:${lastName}Pool${pool}:g" | sed "s:Overall::g" | sed "s:ReagentTest::g" `; ln -s ../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/$i ${lastName}Pool${pool}Reads/$name; done;
+
+#softlink the items in the individual reads into the WorkDir/Reads directory
+for i in `find ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/Sample_*/*.bz2`; do name=`echo $i | cut -f4 -d "/" | cut -f1 -d "_"`; num=`echo $i | cut -f6 -d "_" | cut -c2`; ln -s ../../${i} ${lastName}Pool${pool}WorkDir/Reads/${name}.${num}.fq.bz2; done
+
+#softlink the un-demultiplexed reads
+for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/Project_Pool${pool}/Sample_Pool${pool}/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/Project_Pool${pool}/Sample_Pool${pool}/$i ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool}/Sample_${lastName}Pool${pool}/$name; done;
+
+#softlink the files in the barcodes directory
+for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/ | grep -v "Project_Pool${pool}"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" | sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/$i ${lastName}Pool${pool}Barcodes/$name; done;
+
+#softlink the log files into the Logs directory
 for i in `ls ../../StatsProject/16S/Pool${pool}/Logs/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Logs/$i Logs/$name; done;
+
+#softlink any remaining files into the base directory, substituting the PoolID where appropriate
 for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
+
+#automatically launch the processing job
 link=`readlink -e ${lastName}Pool${pool}WorkDir/Reads/;`
-echo "/users/gesell/Programs/gitHub/16S/fullPipelineSplit.sh $link 40" | qsub -l ncpus=20 -q batch -N ${lastName}Pool${pool}.Process -d `pwd -P` -V;
+echo "${GITREPO}/16S/fullPipelineSplit.sh $link 40" | qsub -l ncpus=20 -q batch -N ${lastName}Pool${pool}.Process -d `pwd -P` -V;

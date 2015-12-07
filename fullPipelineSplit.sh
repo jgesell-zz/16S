@@ -3,15 +3,18 @@
 export READSDIR=$1;
 export THREADS=$2;
 CURRWORKDIR=`pwd`;
+
+#If no thread count was passed, used all available threads on the cluster
 if [ -z "${THREADS}" ];
 	then export THREADS=`grep -c ^processor /proc/cpuinfo`;
 fi
 
+#If no reads directory was passed, sets it to the current directory
 if [ -z "${READSDIR}" ];
 	then export READSDIR=".";
 fi
 
-
+#Verify the existence of the temporary directory
 if [ -d $(readlink -e $TMPDIR) ];
 	then echo "Temporary Directory: ${TMPDIR}";
 	else echo "Temporary Directory does not exist";
@@ -116,6 +119,7 @@ cat ${TMPDIR}/Read2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDI
 for i in `jobs -p | grep -v $bigJob`; do pidlist=`echo -e "\`echo $pidlist\`\n\`echo  $((i + 1))\`"`; done
 wait $pidlist
 
+#Move the temporary files to their final versions
 mv ${TMPDIR}/TempMerged.fq ${TMPDIR}/MergedStandard.fq;
 mv ${TMPDIR}/Temp1.fq ${TMPDIR}/Read1.fq;
 mv ${TMPDIR}/Temp2.fq ${TMPDIR}/Read2.fq;
@@ -128,8 +132,6 @@ cat  ${READSDIR}/../SampleList | xargs -I {} mkdir {};
 cat  ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > {}/{}.2.fq.bz2';
 cat  ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > {}/{}.1.fq.bz2';
 
-
-
 #recover barcodes for deliverables
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Read1.fq.bz2  ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/RawReadsBarcodes.fq.bz2;
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/MergedStandard.fq.bz2   ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/MergedBarcodes.fq.bz2;
@@ -139,7 +141,7 @@ mkdir  ${READSDIR}/../../Deliverables;
 #wait for otu_table construction to finish
 wait; 
 
-#move things to where they belong
+#move files to their destination for further analysis
 for i in `ls ${TMPDIR}/*.fq.bz2`; do name=`basename $i`; cp $i  ${READSDIR}/../../Deliverables/${PROJECTID}.${name};done;
 cp ${TMPDIR}/uparseStandard/otu_table.biom  ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.otu_table.biom; 
 cp ${TMPDIR}/uparseStrict/otu_table.biom  ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.otu_table.biom; 
