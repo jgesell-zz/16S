@@ -5,6 +5,7 @@
 firstName=$1;
 lastName=$2;
 pool=$3;
+prefix=$4
 
 #make the necessary directory structures
 mkdir ${firstName}${lastName};
@@ -19,9 +20,13 @@ mkdir ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool};
 mkdir ${lastName}Pool${pool}Barcodes/Project_${lastName}Pool${pool}/Sample_${lastName}Pool${pool};
 mkdir Logs;
 
+if [ -z "$prefix" ];
+	then prefix=`echo $lastName`;
+fi;
+
 #cat in the information for files that cannot be softlinked
-cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${lastName}" > ${lastName}Pool${pool}WorkDir/SampleList;
-cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${lastName}" > samplesheet.${lastName}Pool${pool}.csv
+cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}Pool${pool}WorkDir/SampleList;
+cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" > samplesheet.${lastName}Pool${pool}.csv
 
 #softlink the required demultiplexed reads into the Reads/Project_* directory
 for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}Pool${pool}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}Pool${pool}Reads/Project_${lastName}Pool${pool}/$i; done;
@@ -42,7 +47,11 @@ for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/ | grep -v "
 for i in `ls ../../StatsProject/16S/Pool${pool}/Logs/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Logs/$i Logs/$name; done;
 
 #softlink any remaining files into the base directory, substituting the PoolID where appropriate
-for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
+for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables" | grep -v "samplesheet.${pool}.csv"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}Pool${pool}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
+
+#echo the number of samples found
+numSamples=`cat ${lastName}Pool${pool}WorkDir/SampleList | wc -l`;
+echo "Total samples found: ${numSamples}"; 
 
 #automatically launch the processing job
 link=`readlink -e ${lastName}Pool${pool}WorkDir/Reads/;`
