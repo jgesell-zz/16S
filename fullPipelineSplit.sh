@@ -147,7 +147,7 @@ cp ${TMPDIR}/uparseStandard/otu_table.biom  ${READSDIR}/../../Deliverables/${PRO
 cp ${TMPDIR}/uparseStrict/otu_table.biom  ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.otu_table.biom; 
 cp  ${READSDIR}/../Stats.StrictMerge.Combined.txt  ${READSDIR}/../../Deliverables/${PROJECTID}.Stats.StrictMerge.Combined.txt;
 cp  ${READSDIR}/../Stats.StandardMerge.Combined.txt  ${READSDIR}/../../Deliverables/${PROJECTID}.Stats.StandardMerge.Combined.txt;
-cp  ${READSDIR}/../SampleList  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleList;
+cp  ${READSDIR}/../SampleList  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleList.txt;
 cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" >  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt;
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample >  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
 tail -n+1  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >>  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
