@@ -18,7 +18,7 @@ The following is a description of the above programs.
 
 MakeFastqsFromBCLs:
 	All BCL files are taken from the MiSeq and run thru CASAVA, in order to generate individual fastq files for each sample.  Additionally, all reads that pass a read filter are compiled into monolithic read fastq files for both reads and barcodes.  All fastq files are then compressed using the pbzip2 program.
-	PhiX is also removed from all reads, and the percent of reads that were mapped to PhiX is recorded as a percentage.
+	PhiX is also removed from all reads, and the percent of reads that were mapped to PhiX is recorded as a percentage using Bowtie2.
 
 fullPipelineSplit:
 	Copies of the compressed fastq files are unzipped and undergo two separate merging filters using usearch 70's fastq_mergepairs function.  Both of these merges ensure that there is a minimum overlap of 50 basepairs in each sample's reads, and with a truncation quality value of 5.  One of these merges, Standard, allows for a 4 basepair difference between the two reads, and is used in all future output requiring standard merge methods.  The second of these merges allows for no mismatches, and ensures that the overall merge does not exceed 254 basepairs in length; this merge, Strict, is used in most of our analysis.
@@ -29,7 +29,7 @@ fullPipelineSplit:
 		1) The fasta file is run thru usearch 70's derep_fulllength program, creating a uc file, and a dereplicated fasta file.
 		2) The reads within the dereplicated fasta file are then sorted by size using usearch70's sortbysize program, and placed into a new fasta file.
 		3) At incriments of 0.4%, the sequences are run thru usearch70's cluster_otus, creating a clustered fasta file at each incriment.  These files are then filtered for any chimeras found by the program, adn all chimera sequences are logged into their own file.  The decisions made by the clustering program are also logged in a file.  
-		4) The output from the previous incriment is then fed into the next, until a maximum of 3.2% is reached.
+		4) The output from the previous incriment is then fed into the next iteration, until a maximum of 3.2% is reached.
 		5) After the final run thru the above loop, the final output is run thru usearch70's uchime_ref program against the Gold databse, using only the plus strand and allowing for no chimeras to create a file with no chimeras.
 		6) This new file is run thru usearch70's usearch_global against the current Silva database, specifying ID to be set at 96.8%, using the plus strand, 0 maxaccepts and rejects.
 		7) The previously created dereplicated fasta file is then searched for any signletons, which are stripped from this file and placed into a separate singleton fasta file.
@@ -42,3 +42,10 @@ fullPipelineSplit:
 -- Results --
 
 The final files that are created are a monolithic read 1 and read 2 file, a barcodes file for both the raw and standard merge, a monolithic read file of the standard merge, both a strict and standard merge OTU table and associated stats sheet, and an example Qiime mapping file.
+
+-- List of Programs Used --
+Bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
+GNU Parallel (https://www.gnu.org/software/parallel/)
+pbzip2 (http://compression.ca/pbzip2/)
+Perl v5.16.2 (https://metacpan.org/release/RJBS/perl-5.16.2)
+USearch v7 (http://www.drive5.com/usearch/)
