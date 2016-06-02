@@ -151,6 +151,7 @@ cp  ${READSDIR}/../SampleList  ${READSDIR}/../../Deliverables/${PROJECTID}.Sampl
 cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" >  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt;
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample >  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
 tail -n+1  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >>  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
+cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
 chmod -R 777  ${READSDIR}/../../Deliverables;
 
 #return to working directory when script was launched
