@@ -72,7 +72,8 @@ for i in {0.4,0.8,1.2,1.6,2.0,2.4,2.8,3.2};
 	mv ${TMPDIR}/uparse{}/temp1.fa ${TMPDIR}/uparse{}/temp.fa;
 done;
 mv ${TMPDIR}/uparse{}/temp.fa ${TMPDIR}/uparse{}/otus1.fa;
-usearch70 -uchime_ref ${TMPDIR}/uparse{}/otus1.fa  -db ${GOLD} -strand plus -nonchimeras ${TMPDIR}/uparse{}/otus.fa -uchimeout ${TMPDIR}/uparse{}/uchimeref.uc;
+usearch70 -uchime_ref ${TMPDIR}/uparse{}/otus1.fa  -db ${GOLD} -strand plus -uchimeout ${TMPDIR}/uparse{}/uchimeref.uc;
+cat ${TMPDIR}/uparse{}/uchimeref.uc | cut -f2,18 | grep -v "Y$" | cut -f1 | ${GITREPO}/Miscellaneous/getSeq ${TMPDIR}/uparse{}/otus1.fa > ${TMPDIR}/uparse{}/otus.fa;
 usearch70 -usearch_global ${TMPDIR}/uparse{}/otus.fa -db ${SILVA}/silva_V4.udb -id .968 -strand plus -threads ${THREADS} -uc ${TMPDIR}/uparse{}/otus2taxa.uc -maxaccepts 0 -maxrejects 0;
 cat ${TMPDIR}/uparse{}/derep.fna | grep -A1 "size=1;" | cut -f2 -d ">" | ${GITREPO}/Miscellaneous/getSeq ${TMPDIR}/uparse{}/derep.fna > ${TMPDIR}/uparse{}/singletons.fna;
 usearch70 -usearch_global ${TMPDIR}/uparse{}/singletons.fna -db ${TMPDIR}/uparse{}/sorted.fa -id .99 -uc ${TMPDIR}/uparse{}/singletons2otus.uc -strand plus -threads ${THREADS} -maxaccepts 32 -maxrejects 128 -minqt 1 -leftjust -rightjust -wordlength 12;
@@ -152,6 +153,9 @@ cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../Sam
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample >  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
 tail -n+1  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >>  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
 cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
+export LD_LIBRARY_PATH=/cmmr/lib:/cmmr/lib64:$LD_LIBRARY_PATH;
+~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.otu_table.biom -n $THREADS -t ~/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt -o ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.xlsx
+~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.otu_table.biom -n $THREADS -t ~/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt -o ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.xlsx
 chmod -R 777  ${READSDIR}/../../Deliverables;
 
 #return to working directory when script was launched
