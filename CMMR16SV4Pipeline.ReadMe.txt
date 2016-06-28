@@ -1,26 +1,20 @@
-Version: 1.1
+Version: 1.2.1
 Author: Jonathan Gesell
-Date: 18 December 2015
+Date: 28 June 2016
 
 --SUMMARY --
 
-The following is a summation of the listed version of the pipeline used by the Alkek Center for Metagenomics and Microbiom Research (CMMR).  The pipeline itself is split into two distinct modules: MakeFastqsFromBCLs.pl and fullPipelineSplit.sh, which can be found linked below.
-
-MakeFastqsFromBCLs:
-https://github.com/jgesell/16S/blob/master/MakeFastqsFromBCLs.pl
-
-fullPipelineSplit:
-https://github.com/jgesell/16S/blob/master/fullPipelineSplit.sh
+The following is a summation of the listed version of the pipeline used by the Alkek Center for Metagenomics and Microbiom Research (CMMR).  The pipeline itself is split into two distinct modules: the first module creates useable fastq files from the Illumina BCL files, and the second is the analysis pipeline.  The functioning of these programs is detailed below.
 
 --Process --
 
 The following is a description of the above programs.
 
-MakeFastqsFromBCLs:
+Fastq Creation:
 	All BCL files are taken from the MiSeq and run thru CASAVA, in order to generate individual fastq files for each sample.  Additionally, all reads that pass a read filter are compiled into monolithic read fastq files for both reads and barcodes.  All fastq files are then compressed using the pbzip2 program.
 	PhiX is also removed from all reads, and the percent of reads that were mapped to PhiX is recorded as a percentage using Bowtie2.
 
-fullPipelineSplit:
+Analysis Pipeline:
 	Copies of the compressed fastq files are unzipped and undergo two separate merging filters using usearch 70's fastq_mergepairs function.  Both of these merges ensure that there is a minimum overlap of 50 basepairs in each sample's reads, and with a truncation quality value of 5.  One of these merges, Standard, allows for a 4 basepair difference between the two reads, and is used in all future output requiring standard merge methods.  The second of these merges allows for no mismatches, and ensures that the overall merge does not exceed 254 basepairs in length; this merge, Strict, is used in most of our analysis.
 	These merged files are then filtered further, using usearch 70's fastq_filter program.  The first filter is applied to the Standard merge files listed above, allows for a maximum expected error of 0.5, and the outputs of this filter are labelled as FilteredRaw.  The second filter also uses the Standard fastqs, also allows for a maximum expected error of 0.5, relables the fastq files for further processing; the outputs of this filter are listed as the FilteredStandard.  The final filter uses the Strict fastq files, and only allows for a maximum expected error of 0.05, as well as relabelling the outputs; these are lablelled as FilteredStrict.
 	All three filtered files are then concatinated into one of three monolithic fastq files: strict, standard and raw.
@@ -38,6 +32,7 @@ fullPipelineSplit:
 		10) The biom file is then summarized, and the statistics for the number of reads per sample that were mapped are recorded.  This file with the statistics is then merged with a file that was generated for the overal read statistics, to give a file that shows the number of mapped versus unmapped reads per sample.
 	After the loop itself has finished, all reads are concatinated into a monolithic read files for read 1, read 2, and a combined reads fastq file.  The final step in the process is to recover the barcodes reads for any raw data analysis.  The monolithic fastqs are run thru an in-house program that recovers these reads  for delivery.
 	At this point, all files required are moved into the appropriate deliverables folder.
+	As a final step, R is called thru Qiime to produce an Excel 2013 readable version of the biom files.
 
 -- Results --
 
@@ -48,4 +43,6 @@ Bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
 GNU Parallel (https://www.gnu.org/software/parallel/)
 pbzip2 (http://compression.ca/pbzip2/)
 Perl v5.16.2 (https://metacpan.org/release/RJBS/perl-5.16.2)
-USearch v7 (http://www.drive5.com/usearch/)
+Qiime v1.8.0 (http://qiime.org/1.8.0/)
+R v3.0.2 (https://cran.r-project.org/bin/windows/base/old/3.0.2/)
+USearch v1.7 (http://www.drive5.com/usearch/)
