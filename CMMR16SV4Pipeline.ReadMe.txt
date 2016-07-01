@@ -1,4 +1,4 @@
-Version: 1.2.1
+Version: 1.2.2
 Author: Jonathan Gesell
 Date: 28 June 2016
 
@@ -29,7 +29,7 @@ Analysis Pipeline:
 		7) The previously created dereplicated fasta file is then searched for any signletons, which are stripped from this file and placed into a separate singleton fasta file.
 		8) Using usearch70's usearch_global program, the singleton fasta file is then compared to the previously created sorted fasta file, using only the plus strand, allowing for 32 maxaccepts and 128 maxrejects and requiring an identity value of 99%.  The results are stored.
 		9) All the files created in the loop so far are then run thru a program developed in-house that resolves the iterative uparse steps, creating an OTU table, removing the chimera and singleton reads, and using the Silva database to map them.
-		10) The biom file is then summarized, and the statistics for the number of reads per sample that were mapped are recorded.  This file with the statistics is then merged with a file that was generated for the overal read statistics, to give a file that shows the number of mapped versus unmapped reads per sample.
+		10) The biom file is then summarized, and the statistics for the number of reads per sample that were mapped are recorded.  This file with the statistics is then merged with a file that was generated for the overal read statistics, to give a file that shows the number of raw reads, and mapped versus unmapped reads per sample.
 	After the loop itself has finished, all reads are concatinated into a monolithic read files for read 1, read 2, and a combined reads fastq file.  The final step in the process is to recover the barcodes reads for any raw data analysis.  The monolithic fastqs are run thru an in-house program that recovers these reads  for delivery.
 	At this point, all files required are moved into the appropriate deliverables folder.
 	As a final step, R is called thru Qiime to produce an Excel 2013 readable version of the biom files.
@@ -43,6 +43,6 @@ Bowtie2 (http://bowtie-bio.sourceforge.net/bowtie2/index.shtml)
 GNU Parallel (https://www.gnu.org/software/parallel/)
 pbzip2 (http://compression.ca/pbzip2/)
 Perl v5.16.2 (https://metacpan.org/release/RJBS/perl-5.16.2)
-Qiime v1.8.0 (http://qiime.org/1.8.0/)
+Phyloseq v1.16.2 (https://joey711.github.io/phyloseq/install)
 R v3.0.2 (https://cran.r-project.org/bin/windows/base/old/3.0.2/)
 USearch v1.7 (http://www.drive5.com/usearch/)
