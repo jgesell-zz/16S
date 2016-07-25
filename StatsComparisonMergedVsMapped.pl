@@ -16,7 +16,7 @@ my $reads = {};
 open IN, "$raw";
 
 my @raw;
-open STATSRAW, ">tempraw";
+open STATSMERGED, ">tempmerge";
 open STATSPICK, ">temppick";
 
 while (my $line = <IN>) {
@@ -24,9 +24,9 @@ while (my $line = <IN>) {
 	$line =~ s/^\s+//g;
 	my @parts = split /\s+/, $line;
 	$reads->{$parts[1]}->{'raw'} = $parts[0];
-	print STATSRAW "$parts[0]\n";
+	print STATSMERGED "$parts[0]\n";
 }
-close STATSRAW;
+close STATSMERGED;
 close IN;
 
 
@@ -53,19 +53,27 @@ foreach my $sample (keys %{$reads}) {
 
 close STATSPICK;
 print "SampleID\tRaw\tMapped\tUnmapped\n";
+open STATSRAW, ">tempraw";
 foreach my $sample (sort {($reads->{$a}->{'picked'} + ($reads->{$a}->{'raw'} - $reads->{$a}->{'picked'})) <=> ($reads->{$b}->{'picked'} + ($reads->{$b}->{'raw'} - $reads->{$b}->{'picked'}))} keys %{$reads}) {
 	my $picked = $reads->{$sample}->{'picked'};
 	my $diff = $reads->{$sample}->{'raw'} - $picked;
 	my $cmd = join(' cat ',$ENV{TMPDIR},'/',$sample,'.1.fq | wc -l');
 	my $readcount = `cat $ENV{TMPDIR}/$sample.1.fq | wc -l`/4;
+	print STATSRAW "$readcount\n";
 	print "$sample\t$readcount\t$picked\t$diff\n";
 }
+close STATSRAW;
 
 print "\n\n";
-print "Raw Stats:\n";
+print "Raw Stats\n";
 my $capture = `cat tempraw | ~mcwong/listStats.pl`;
 print "$capture";
 `rm tempraw`;
+print "\n\n";
+print "Merged Stats:\n";
+my $capture = `cat tempmerge | ~mcwong/listStats.pl`;
+print "$capture";
+`rm tempmerge`;
 print "\n\n";
 print "Mapped Stats:\n";
 $capture = `cat temppick | ~mcwong/listStats.pl`;
