@@ -426,15 +426,17 @@ sub concatenateReads {
 	my @compressFiles;
 	foreach my $sample (keys %samplesToBarcodes) {
 		system("echo $sample >> $workDir/SampleList");
-		my $cmd = "zcat $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq.gz | tee $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq | sed 's/1:N:0:.*/1:N:0:/g' | grep \"^\@HWI\" | wc -l";
+		my $cmd = "zcat $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq.gz | tee $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq | wc -l";
 		my $cmd2 = "zcat $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R2_001.fastq.gz > $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R2_001.fastq";
+		chomp ($cmd);
 		my $output = capture($cmd);
+		$output = $output / 4;
 		system($cmd2);
 		$cmd = "rm $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq.gz $projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R2_001.fastq.gz";
 		system($cmd);
 		push @compressFiles, "$projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq";
 		push @compressFiles, "$projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R2_001.fastq";
-		print COUNT "$sample\t$output";
+		print COUNT "$sample\t$output\n";
 		$links{"${readDir}/${sample}.1.fq.bz2"} = "$projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R1_001.fastq.bz2";
 		$links{"${readDir}/${sample}.2.fq.bz2"} = "$projDir/Project_$projName/Sample_$sample/${sample}_$samplesToBarcodes{$sample}_L00${lane}_R2_001.fastq.bz2";
 	}
