@@ -153,8 +153,8 @@ cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../Sam
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample >  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
 tail -n+1  ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >>  ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt;
 cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
-/cmmr/opt/qiime/qiime-1.8.0/r-3.0.2-release/bin/Rscript ~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.otu_table.biom -n $THREADS -t ~dpsmith/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt -o ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.xlsx
-/cmmr/opt/qiime/qiime-1.8.0/r-3.0.2-release/bin/Rscript ~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.otu_table.biom -n $THREADS -t ~dpsmith/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt -o ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.xlsx
+/cmmr/bin/Rscript ~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.otu_table.biom -n $THREADS -t /gpfs1/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt -o ${READSDIR}/../../Deliverables/${PROJECTID}.Standard.xlsx
+/cmmr/bin/Rscript ~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.otu_table.biom -n $THREADS -t /gpfs1/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/${PROJECTID}.ExampleQiimeMappingFile.txt -o ${READSDIR}/../../Deliverables/${PROJECTID}.Strict.xlsx
 chmod -R 777  ${READSDIR}/../../Deliverables;
 
 #return to working directory when script was launched
