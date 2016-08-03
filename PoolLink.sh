@@ -15,16 +15,11 @@ fi;
 cd /gpfs1/projects/jgesell;
 
 #make the necessary directory structures
-mkdir ${firstName}${lastName};
-mkdir ${firstName}${lastName}/${poolName};
+mkdir -p ${firstName}${lastName}/${poolName};
 cd ${firstName}${lastName}/${poolName};
-mkdir ${lastName}${poolName}WorkDir;
-mkdir ${lastName}${poolName}WorkDir/Reads;
-mkdir ${lastName}${poolName}Reads;
-mkdir ${lastName}${poolName}Reads/Project_${lastName}${poolName}
-mkdir ${lastName}${poolName}Barcodes;
-mkdir ${lastName}${poolName}Barcodes/Project_${lastName}${poolName};
-mkdir ${lastName}${poolName}Barcodes/Project_${lastName}${poolName}/Sample_${lastName}${poolName};
+mkdir -p ${lastName}${poolName}WorkDir/Reads;
+mkdir -p ${lastName}${poolName}Reads/Project_${lastName}${poolName}
+mkdir -p ${lastName}${poolName}Barcodes/Project_${lastName}${poolName}/Sample_${lastName}${poolName};
 mkdir Logs;
 
 if [ -z "$prefix" ];
