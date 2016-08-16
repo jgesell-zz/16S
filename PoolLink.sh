@@ -29,6 +29,7 @@ fi;
 #cat in the information for files that cannot be softlinked
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}${poolName}WorkDir/SampleList;
 cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" > samplesheet.${lastName}${poolName}.csv
+cat ../../StatsProject/16S/Pool${pool}/${pool}.barcodeCounts.txt | grep "${prefix}" >  ${lastName}${poolName}.barcodeCounts.txt
 
 #softlink the required demultiplexed reads into the Reads/Project_* directory
 for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}${poolName}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}${poolName}Reads/Project_${lastName}${poolName}/$i; done;
@@ -49,7 +50,7 @@ for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/ | grep -v "
 for i in `ls ../../StatsProject/16S/Pool${pool}/Logs/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}${poolName}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Logs/$i Logs/$name; done;
 
 #softlink any remaining files into the base directory, substituting the PoolID where appropriate
-for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables" | grep -v "samplesheet.${pool}.csv"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}${poolName}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
+for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables" | grep -v "samplesheet.${pool}.csv" | grep -v ".barcodeCounts.txt"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}${poolName}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
 
 #echo the number of samples found
 numSamples=`cat ${lastName}${poolName}WorkDir/SampleList | wc -l`;

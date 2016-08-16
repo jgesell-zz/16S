@@ -44,7 +44,8 @@ for i in `cat $inputFiles`;
 			echo ${k} | sed "s:${name}:${name2}:g" >> ${outputDirectory}/samplesheet.${outname}.csv
 		done;
 	done;
-	cat ${input}/sampleSheet.notDemultiplexed.*.csv >> ${outputDirectory}/sampleSheet.notDemultiplexed.${outname}.csv
+	cat ${input}/sampleSheet.notDemultiplexed.*.csv >> ${outputDirectory}/sampleSheet.notDemultiplexed.${outname}.csv;
+	cat ${input}/*.barcodeCounts.txt | grep -f ${input}/*WorkDir/SampleList >> ${outputDirectory}/${outname}.barcodeCounts.txt;
 done;
 
 #Creates simlinks to the read files in the working directory
