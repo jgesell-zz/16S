@@ -92,7 +92,7 @@ if [ $var -eq 1 ];
 fi;
 cat ${TMPDIR}/uparse{}/Stats.{}Merge.otu_table.txt | tail -n +$var | sed "s/^ //g" | sed -re "s/: /\t/g" | sed "s/\.0$//g" >  ${READSDIR}/../Stats.{}Merge.MappedReads.txt;
 cat  ${READSDIR}/../split_libraries/{}.seqs.fna | grep "^>" | cut -f1 -d "_" | cut -f2 -d ">" | sort | uniq -c >  ${READSDIR}/../Stats.{}Merge.MergedReads.txt;
-perl ${GITREPO}/16S/StatsComparisonMergedVsMapped.pl  ${READSDIR}/../Stats.{}Merge.MergedReads.txt  ${READSDIR}/../Stats.{}Merge.MappedReads.txt >  ${READSDIR}/../Stats.{}Merge.Combined.txt;
+perl ${GITREPO}/../ToTest/StatsComparisonMergedVsMapped.pl  ${READSDIR}/../Stats.{}Merge.MergedReads.txt  ${READSDIR}/../Stats.{}Merge.MappedReads.txt ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt > ${READSDIR}/../Stats.{}Merge.Combined.txt;
 tar -cvjf  ${READSDIR}/../uparse{}.tar.bz2 ${TMPDIR}/uparse{};
 ' &
 bigJob=`jobs -p`;
