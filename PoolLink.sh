@@ -29,7 +29,7 @@ fi;
 #cat in the information for files that cannot be softlinked
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}${poolName}WorkDir/SampleList;
 cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" > samplesheet.${lastName}${poolName}.csv
-cat ../../StatsProject/16S/Pool${pool}/${pool}.barcodeCounts.txt | grep "${prefix}" >  ${lastName}${poolName}.barcodeCounts.txt
+cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep "${prefix}" >  ${lastName}${poolName}.barcodeCounts.txt
 
 #softlink the required demultiplexed reads into the Reads/Project_* directory
 for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}${poolName}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}${poolName}Reads/Project_${lastName}${poolName}/$i; done;
