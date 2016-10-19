@@ -36,7 +36,7 @@ cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Standard M
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge:'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; echo";
 
 #filter three ways (raw merged, standard merged, strict merged)
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .5 -fastqout ${TMPDIR}/{}.filteredRaw.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .05 -fastqout ${TMPDIR}/{}.filteredRaw.fq; echo";
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Strict Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.Merged_Reads.fq -fastq_maxee .05 -relabel \"{}_\" -fastqout ${TMPDIR}/{}.filteredStrict.fq; echo";
 
 #concatenate demultiplexed fastqs into monolithic variants
@@ -114,7 +114,7 @@ cat ${TMPDIR}/Merged_Reads.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v 
 cat ${TMPDIR}/Raw_Read1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp1.fq &
 cat ${TMPDIR}/Raw_Read3.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp2.fq &
 for i in `jobs -p | grep -v $bigJob`; do pidlist=`echo -e "\`echo $pidlist\`\n\`echo $((i + 1))\`"`; done
-wait $pidlist
+wait;
 
 #Move the temporary files to their final versions
 mv ${TMPDIR}/TempMerged_Reads.fq ${TMPDIR}/Merged_Reads.fq;
@@ -125,33 +125,29 @@ mv ${TMPDIR}/Temp2.fq ${TMPDIR}/Raw_Read3.fq;
 pbzip2 -p${THREADS} ${TMPDIR}/Raw_Read1.fq;
 pbzip2 -p${THREADS} ${TMPDIR}/Raw_Read3.fq;
 pbzip2 -p${THREADS} ${TMPDIR}/Merged_Reads.fq;
+pbzip2 -p${THREADS} ${TMPDIR}/Raw_Reads.fq;
 cat ${READSDIR}/../SampleList | xargs -I {} mkdir {};
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > {}/{}.2.fq.bz2';
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > {}/{}.1.fq.bz2';
 
 #recover barcodes for deliverables
-${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2 &
-${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2 &
+${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2;
+${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2;
 
 mkdir ${READSDIR}/../../Deliverables;
 
-#wait for otu_table construction to finish
-wait; 
-
 #move files to their destination for further analysis
 cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/;
-cp ${TMPDIR}/uparseStrict/otu_table.biom ${READSDIR}/../../Deliverables/OTU_table.biom; 
+cp ${TMPDIR}/uparseStrict/otu_table.biom ${READSDIR}/../../Deliverables/OTU_Table.biom; 
 cp ${READSDIR}/../Stats.StrictMerge.Combined.txt ${READSDIR}/../../Deliverables/Read_QC.txt;
-cp ${READSDIR}/../SampleList ${READSDIR}/../../Deliverables/${PROJECTID}.SampleList.txt;
-cat ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" > ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt;
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample > ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
-tail -n+1 ${READSDIR}/../../Deliverables/${PROJECTID}.SampleSheet.txt | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
+cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
 cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
-/cmmr/bin/Rscript ~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/OTU_table.biom -n $THREADS -t /gpfs1/db/silva/123/silva123_V4.tre -m ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt -o ${READSDIR}/../../Deliverables/Summary_Excel_Tables.xlsx
-chmod -R 777 ${READSDIR}/../../Deliverables;
+/cmmr/bin/Rscript ~dpsmith/bin/biom2xlsx.r -i ${READSDIR}/../../Deliverables/OTU_table.biom -n ${THREADS} -t ${SILVA}/silva_V4.tre -m ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt -o ${READSDIR}/../../Deliverables/Summary_Excel_Tables.xlsx
+chmod -R 755 ${READSDIR}/../../Deliverables;
 
 #return to working directory when script was launched
-cd $CURRWORKDIR;
+cd ${CURRWORKDIR};
 
 #exit without error status once completed
 exit 0;
