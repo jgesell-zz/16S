@@ -6,42 +6,45 @@ use strict;
 
 
 my $raw = $ARGV[0];
-my $picked = $ARGV[1];
+my $merged = $ARGV[1];
+my $mapped = $ARGV[2];
 
 
 
 
 
 my $reads = {};
-open IN, "$raw";
 
 my @raw;
 open STATSMERGED, ">tempmerge";
-open STATSPICK, ">temppick";
+open STATSMAPPED, ">temppick";
+open STATSRAW, ">tempraw";
 
+open IN, "$raw";
 while (my $line = <IN>) {
 	chomp $line;
 	$line =~ s/^\s+//g;
 	my @parts = split /\s+/, $line;
-	$reads->{$parts[1]}->{'raw'} = $parts[0];
-	print STATSMERGED "$parts[0]\n";
+	$reads->{$parts[0]}->{'raw'} = $parts[1];
+	print STATSRAW "$parts[1]\n";
 }
-close STATSMERGED;
+close STATSRAW;
 close IN;
 
 
 
-open IN, "$picked";
+open IN, "$merged";
 while (my $line = <IN>) {
 	chomp $line;
-	my @parts = split /\t/, $line;
-#	print "sample = $parts[0]\n";
-	$reads->{$parts[0]}->{'picked'} = $parts[1];
-	print STATSPICK "$parts[1]\n";
+	$line =~ s/^\s+//g;
+	my @parts = split /\s+/, $line;
+#	print "Merged sample = $parts[0]\n";
+	$reads->{$parts[1]}->{'merged'} = $parts[0];
+	print STATSMERGED "$parts[0]\n";
 }
 foreach my $sample (keys %{$reads}) {
-	unless (exists $reads->{$sample}->{'picked'}) {
-		$reads->{$sample}->{'picked'} = 0
+	unless (exists $reads->{$sample}->{'merged'}) {
+		$reads->{$sample}->{'merged'} = 0
 	}
 	unless (exists $reads->{$sample}->{'raw'}) {
 		$reads->{$sample}->{'raw'} = 0
@@ -49,20 +52,41 @@ foreach my $sample (keys %{$reads}) {
 
 
 }
+close STATSMERGED;
+close IN;
 
-
-close STATSPICK;
-print "SampleID\tRaw\tMapped\tUnmapped\n";
-open STATSRAW, ">tempraw";
-foreach my $sample (sort {($reads->{$a}->{'picked'} + ($reads->{$a}->{'raw'} - $reads->{$a}->{'picked'})) <=> ($reads->{$b}->{'picked'} + ($reads->{$b}->{'raw'} - $reads->{$b}->{'picked'}))} keys %{$reads}) {
-	my $picked = $reads->{$sample}->{'picked'};
-	my $diff = $reads->{$sample}->{'raw'} - $picked;
-	my $cmd = join(' cat ',$ENV{TMPDIR},'/',$sample,'.1.fq | wc -l');
-	my $readcount = `cat $ENV{TMPDIR}/$sample.1.fq | wc -l`/4;
-	print STATSRAW "$readcount\n";
-	print "$sample\t$readcount\t$picked\t$diff\n";
+open IN, "$mapped";
+while (my $line = <IN>) {
+        chomp $line;
+	$line =~ s/^\s+//g;
+        my @parts = split /\t/, $line;
+#        print "Mapped sample =  $parts[1]\n";
+	$reads->{$parts[0]}->{'mapped'} = $parts[1];
+        print STATSMAPPED "$parts[1]\n";
 }
-close STATSRAW;
+foreach my $sample (keys %{$reads}) {
+        unless (exists $reads->{$sample}->{'mapped'}) {
+                $reads->{$sample}->{'mapped'} = 0
+        }
+        unless (exists $reads->{$sample}->{'raw'}) {
+                $reads->{$sample}->{'raw'} = 0
+        }
+
+
+}
+close STATSMAPPED;
+close IN;
+
+print "SampleID\tRaw\tMapped\tUnmapped\n";
+foreach my $sample (sort {($reads->{$a}->{'mapped'} + ($reads->{$a}->{'raw'} - $reads->{$a}->{'mapped'})) <=> ($reads->{$b}->{'mapped'} + ($reads->{$b}->{'raw'} - $reads->{$b}->{'mapped'}))} keys %{$reads}) {
+	my $mapped = $reads->{$sample}->{'mapped'};
+	my $diff = $reads->{$sample}->{'merged'} - $mapped;
+#	my $cmd = join(' cat ',$ENV{TMPDIR},'/',$sample,'.1.fq | wc -l');
+#	my $readcount = `cat $ENV{TMPDIR}/$sample.1.fq | wc -l`/4;
+	my $readcount = $reads ->{$sample}->{'raw'};
+#	print STATSRAW "$readcount\n";
+	print "$sample\t$readcount\t$mapped\t$diff\n";
+}
 
 print "\n\n";
 print "Raw Stats\n";
@@ -71,7 +95,7 @@ print "$capture";
 `rm tempraw`;
 print "\n\n";
 print "Merged Stats:\n";
-my $capture = `cat tempmerge | ~mcwong/listStats.pl`;
+$capture = `cat tempmerge | ~mcwong/listStats.pl`;
 print "$capture";
 `rm tempmerge`;
 print "\n\n";
