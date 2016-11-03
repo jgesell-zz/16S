@@ -36,8 +36,8 @@ cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Standard M
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge:'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; echo";
 
 #filter three ways (raw merged, standard merged, strict merged)
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .05 -fastqout ${TMPDIR}/{}.filteredRaw.fq; echo";
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Strict Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.Merged_Reads.fq -fastq_maxee .05 -relabel \"{}_\" -fastqout ${TMPDIR}/{}.filteredStrict.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .05 -fastqout ${TMPDIR}/{}.filteredRaw.fq && rm ${TMPDIR}/{}.MergedStandard.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Strict Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.Merged_Reads.fq -fastq_maxee .05 -relabel \"{}_\" -fastqout ${TMPDIR}/{}.filteredStrict.fq && rm ${TMPDIR}/{}.Merged_Reads.fq; echo";
 
 #concatenate demultiplexed fastqs into monolithic variants
 cat ${TMPDIR}/*.filteredStrict.fq > ${TMPDIR}/seqs.strict.fq &
@@ -45,9 +45,11 @@ cat ${TMPDIR}/*.filteredRaw.fq > ${TMPDIR}/seqs.raw.fq &
 cat ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt | grep -f ${READSDIR}/../SampleList > ${TMPDIR}/${PROJECTID}.barcodeCounts.txt &
 wait;
 
+rm ${TMPDIR}/*.filteredStrict.fq ${TMPDIR}/*.filteredRaw.fq &
+
 #filter out phiX bleed
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1;
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1;
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq;
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq;
 
 #construct the fastas for uparse
 mkdir ${READSDIR}/../split_libraries;
@@ -127,14 +129,12 @@ pbzip2 -f -p${THREADS} ${TMPDIR}/Raw_Read1.fq;
 pbzip2 -f -p${THREADS} ${TMPDIR}/Raw_Read3.fq;
 pbzip2 -f -p${THREADS} ${TMPDIR}/Merged_Reads.fq;
 cat ${READSDIR}/../SampleList | xargs -I {} mkdir -p ${READSDIR}/../../Deliverables/RawSequences/{};
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2';
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.1.fq.bz2';
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.1.fq.bz2 && rm ${TMPDIR}/{}.1.fq';
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2 && rm ${TMPDIR}/{}.2.fq';
 
 #recover barcodes for deliverables
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2;
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2;
-
-mkdir ${READSDIR}/../../Deliverables;
 
 #move files to their destination for further analysis
 cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/;
@@ -145,7 +145,12 @@ cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../Sam
 cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
 /cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
 chmod -R 755 ${READSDIR}/../../Deliverables;
-
+if [ -r "${READSDIR}/../../Deliverables/Read_QC.txt" ];
+then collab=`readlink -e ${READSDIR} | cut -f5 -d "/"`;
+pool=`readlink -e ${READSDIR} | cut -f6 -d "/"`;
+echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu;
+else echo -e "${collab} ${pool} run failed, please check reason" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has failed" gesell@bcm.edu;
+fi;
 
 #return to working directory when script was launched
 cd ${CURRWORKDIR};
