@@ -19,14 +19,18 @@ mkdir ${outputDirectory}/Logs;
 mkdir -p ${outputDirectory}/${outname}Reads/Project_${outname};
 mkdir -p ${outputDirectory}/${outname}WorkDir/Reads;
 mkdir -p ${outputDirectory}/${outname}Barcodes/Project_${outname}/Sample_${outname};
+total=0;
 
 #Cycles thru each input directory and links/merges the needed read files for each sample
 for i in `cat $inputFiles`;
 	do input=`readlink -e ${i}`;
+	counter=0;
 	echo "Adding pool ${input} to the merged set"
 	#Create the links to the reads
-	for j in `find ${input}/*Reads/Project_* | grep -v ".bz2" | grep -v ".csv" | grep "Sample_" | grep -f ${input}/*WorkDir/SampleList`;
+	for j in `find ${input}/*Reads/Project_*/Sample_* -maxdepth 0  | grep -f ${input}/*WorkDir/SampleList`;
 		do count=`echo $input | rev | cut -f1 -d "/" | rev`
+		counter=`echo $((counter + 1))`;
+		total=`echo $((total + 1))`;
 		name=`echo ${j} | rev | cut -f1 -d "/" | rev`;
 		name2=`echo ${name}.${count}`;
 		mkdir ${outputDirectory}/${outname}Reads/Project_${outname}/${name2};
@@ -45,19 +49,22 @@ for i in `cat $inputFiles`;
 		done;
 	done;
 	cat ${input}/sampleSheet.notDemultiplexed.*.csv >> ${outputDirectory}/sampleSheet.notDemultiplexed.${outname}.csv;
-	cat ${input}/*.barcodeCounts.txt | grep -f ${input}/*WorkDir/SampleList >> ${outputDirectory}/${outname}.barcodeCounts.txt;
+count=`echo $input | rev | cut -f1 -d "/" | rev`;
+	cat ${input}/*.barcodeCounts.txt | grep -f ${input}/*WorkDir/SampleList | sed -e "s:\t:.${count}\t:g" >> ${outputDirectory}/${outname}.barcodeCounts.txt;
+	echo "Total samples from pool ${input} = ${counter}";
 done;
 
 #Creates simlinks to the read files in the working directory
 for j in `ls ${outputDirectory}/${outname}Reads/Project_${outname}`
 	do name=`echo $j | rev | cut -f1 -d "/" | rev | sed 's:Sample_::g'`;
 	for seq in `ls ${outputDirectory}/${outname}Reads/Project_${outname}/${j} | grep "bz2"`
-		do link=`echo $seq | sed -r 's:_[ACGT]+_L001_R1_001.fastq:@.1.fq:g' | sed -r 's:_[ACGT]+_L001_R2_001.fastq:@.2.fq:g'`;
+		do link=`echo $seq | sed -r 's:_[ACGNT]+_L001_R1_001.fastq:@.1.fq:g' | sed -r 's:_[ACGNT]+_L001_R2_001.fastq:@.2.fq:g'`;
 		temp=`echo $link | cut -f1 -d "@"`
 		link=`echo $link | sed "s:${temp}:${name}:g" | sed 's:@::g'`;
 		ln -s ${outputDirectory}/${outname}Reads/Project_${outname}/${j}/${seq} ${outputDirectory}/${outname}WorkDir/Reads/${link};
 	done;
 done;
 cd ${outputDirectory}/${outname}WorkDir/Reads;
+echo "Total samples found: ${total}";
 echo ${GITREPO}/16S/fullPipelineSplit.sh | qsub -l ncpus=20 -q batch -N ${outname}.Process -d `pwd -P` -V;
 exit 0;
