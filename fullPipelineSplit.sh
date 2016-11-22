@@ -145,10 +145,14 @@ cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../Sam
 cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
 /cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
 chmod -R 755 ${READSDIR}/../../Deliverables;
-if [ -r "${READSDIR}/../../Deliverables/Read_QC.txt" ];
+if [ -r "${READSDIR}/../../Deliverables/ProjectData.rds" ];
 then collab=`readlink -e ${READSDIR} | cut -f5 -d "/"`;
 pool=`readlink -e ${READSDIR} | cut -f6 -d "/"`;
-echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu;
+if [ "${collab}" != "StatsProject" ];
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu;
+elif [ "${collab}" = "StatsProject" ];
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu;
+fi;
 else echo -e "${collab} ${pool} run failed, please check reason" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has failed" gesell@bcm.edu;
 fi;
 
