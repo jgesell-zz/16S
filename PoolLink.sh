@@ -2,14 +2,26 @@
 
 #This program takes the first name, last name and pool number for a MiSeq run and creates the file structure to run our current pipeline.  It assumes that you have already demultiplexed the whole pool, but not the individual collaborator.
 
-firstName=$1;
-lastName=$2;
-pool=$3;
-prefix=$4;
-poolName=$5;
+collabName=$1;
+pool=$2;
+prefix=$3;
+poolName=$4;
+sampleList=$5;
+
+if [ ! -e "${sampleList}" ];
+then sampleList="";
+else sampleList=`readlink -e ${sampleList}`;
+fi;
 
 if [ -z "$poolName" ];
-	then poolName=Pool`echo $pool`;
+then poolName=Pool`echo $pool`;
+fi;
+
+firstName=`echo ${collabName} | cut -f1 -d "_"`;
+lastName=`echo ${collabName} | cut -f2 -d "_"`;
+
+if [ "${firstName}" = "${lastName}" ];
+then firstName="";
 fi;
 
 cd /gpfs1/projects/jgesell;
@@ -27,9 +39,14 @@ if [ -z "$prefix" ];
 fi;
 
 #cat in the information for files that cannot be softlinked
-cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}${poolName}WorkDir/SampleList;
+if [ -e "${sampleList}" ];
+then cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep -f "${sampleList}" > ${lastName}${poolName}WorkDir/SampleList;
+cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep -f "${sampleList}" > samplesheet.${lastName}${poolName}.csv
+cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep -f "${sampleList}" >  ${lastName}${poolName}.barcodeCounts.txt
+else cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}${poolName}WorkDir/SampleList;
 cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" > samplesheet.${lastName}${poolName}.csv
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep "${prefix}" >  ${lastName}${poolName}.barcodeCounts.txt
+fi;
 
 #softlink the required demultiplexed reads into the Reads/Project_* directory
 for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/ | grep -f ${lastName}${poolName}WorkDir/SampleList`; do ln -s ../../../../StatsProject/16S/Pool${pool}/Pool${pool}Reads/Project_Pool${pool}/$i ${lastName}${poolName}Reads/Project_${lastName}${poolName}/$i; done;
@@ -50,7 +67,7 @@ for i in `ls ../../StatsProject/16S/Pool${pool}/Pool${pool}Barcodes/ | grep -v "
 for i in `ls ../../StatsProject/16S/Pool${pool}/Logs/`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}${poolName}:g"`; ln -s ../../../StatsProject/16S/Pool${pool}/Logs/$i Logs/$name; done;
 
 #softlink any remaining files into the base directory, substituting the PoolID where appropriate
-for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables" | grep -v "samplesheet.${pool}.csv" | grep -v ".barcodeCounts.txt"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}${poolName}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
+for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Pool${pool}Barcodes" | grep -v "Pool${pool}Reads" | grep -v "Pool${pool}WorkDir" | grep -v "Deliverables" | grep -v "samplesheet.${pool}.csv" | grep -v "barcodeCounts.txt"`; do name=`echo $i | sed "s:Overall::g" | sed "s:ReagentTest::g" |  sed "s:Pool${pool}:${lastName}${poolName}:g"`; ln -s ../../StatsProject/16S/Pool${pool}/$i $name; done;
 
 #echo the number of samples found
 numSamples=`cat ${lastName}${poolName}WorkDir/SampleList | wc -l`;
