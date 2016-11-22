@@ -52,6 +52,10 @@ for i in `cat $inputFiles`;
 count=`echo $input | rev | cut -f1 -d "/" | rev`;
 	cat ${input}/*.barcodeCounts.txt | grep -f ${input}/*WorkDir/SampleList | sed -e "s:\t:.${count}\t:g" >> ${outputDirectory}/${outname}.barcodeCounts.txt;
 	echo "Total samples from pool ${input} = ${counter}";
+	if [ "${counter}" -eq 0 ];
+		then echo "Error: no samples found for pool ${input}!";
+		exit 1;
+	fi;
 done;
 
 #Creates simlinks to the read files in the working directory
