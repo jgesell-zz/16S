@@ -15,16 +15,18 @@ then export READSDIR=".";
 fi
 
 #Verify the existence of the temporary directory
-if [ -d $(readlink -e $TMPDIR) ];
+if [ -d $(readlink -e ${TMPDIR}) ];
 then echo "Temporary Directory: ${TMPDIR}";
 else echo "Temporary Directory does not exist";
 fi
 
 #go into Reads dir
-export READSDIR=`readlink -e $READSDIR`;
+export READSDIR=`readlink -e ${READSDIR}`;
 cd ${READSDIR};
 export PROJECTID=`basename $(readlink -e ${READSDIR}/..) | sed 's/WorkDir//g'`;
-echo ${PROJECTID};
+echo "Current Reads Directory: ${READSDIR}";
+echo "Current Project ID: ${PROJECTID}";
+THREADSPLIT=$[THREADS / 2];
 
 ## prepping the fastqs for processing ##
 #decompress fastqs to temporary directory
@@ -32,29 +34,30 @@ cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.1.fq.bz2 |
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.2.fq.bz2 | sed 's/2:N:0:.*/3:N:0:/g' > ${TMPDIR}/{}.2.fq";
 
 #merge both standard merge and strict merge
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Standard Merge:'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 4 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.MergedStandard.fq; echo";
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge:'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Standard Merge'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 4 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.MergedStandard.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; echo";
 
 #filter three ways (raw merged, standard merged, strict merged)
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .05 -fastqout ${TMPDIR}/{}.filteredRaw.fq && rm ${TMPDIR}/{}.MergedStandard.fq; echo";
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Strict Merge:'; usearch70 -fastq_filter ${TMPDIR}/{}.Merged_Reads.fq -fastq_maxee .05 -relabel \"{}_\" -fastqout ${TMPDIR}/{}.filteredStrict.fq && rm ${TMPDIR}/{}.Merged_Reads.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .05 -fastqout ${TMPDIR}/{}.filteredRaw.fq && rm ${TMPDIR}/{}.MergedStandard.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Strict Merge'; usearch70 -fastq_filter ${TMPDIR}/{}.Merged_Reads.fq -fastq_maxee .05 -relabel \"{}_\" -fastqout ${TMPDIR}/{}.filteredStrict.fq && rm ${TMPDIR}/{}.Merged_Reads.fq; echo";
 
 #concatenate demultiplexed fastqs into monolithic variants
 cat ${TMPDIR}/*.filteredStrict.fq > ${TMPDIR}/seqs.strict.fq &
 cat ${TMPDIR}/*.filteredRaw.fq > ${TMPDIR}/seqs.raw.fq &
 cat ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt | grep -f ${READSDIR}/../SampleList > ${TMPDIR}/${PROJECTID}.barcodeCounts.txt &
 wait;
-
 rm ${TMPDIR}/*.filteredStrict.fq ${TMPDIR}/*.filteredRaw.fq &
 
 #filter out phiX bleed
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq;
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADS} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq;
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq &
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq &
+wait;
 
 #construct the fastas for uparse
 mkdir ${READSDIR}/../split_libraries;
 fq2fa ${TMPDIR}/seqs.strict.filtered.fq ${READSDIR}/../split_libraries/Strict.seqs.fna &
 wait;
+mkdir -p ${READSDIR}/../../Deliverables
 
 #simultaneous uparse
 echo "Strict" | parallel -I {} '
@@ -88,10 +91,13 @@ if [ $var -eq 1 ];
 then echo "No start-line found, terminating";
 exit 1;
 fi;
-cat ${TMPDIR}/uparse{}/Stats.{}Merge.otu_table.txt | tail -n +$var | sed "s/^ //g" | sed -re "s/: /\t/g" | sed "s/\.0$//g" > ${READSDIR}/../Stats.{}Merge.MappedReads.txt;
-cat ${READSDIR}/../split_libraries/{}.seqs.fna | grep "^>" | cut -f1 -d "_" | cut -f2 -d ">" | sort | uniq -c > ${READSDIR}/../Stats.{}Merge.MergedReads.txt;
-perl ${GITREPO}/16S/StatsComparisonMergedVsMapped.pl ${TMPDIR}/${PROJECTID}.barcodeCounts.txt ${READSDIR}/../Stats.{}Merge.MergedReads.txt ${READSDIR}/../Stats.{}Merge.MappedReads.txt > ${READSDIR}/../Stats.{}Merge.Combined.txt;
-tar -cvjf ${READSDIR}/../uparse{}.tar.bz2 -C ${TMPDIR} uparse{};
+cat ${TMPDIR}/uparse{}/Stats.{}Merge.otu_table.txt | tail -n +$var | sed "s/^ //g" | sed -re "s/: /\t/g" | sed "s/\.0$//g" > ${READSDIR}/../Stats.{}Merge.MappedReads.txt &
+cat ${READSDIR}/../split_libraries/{}.seqs.fna | grep "^>" | cut -f1 -d "_" | cut -f2 -d ">" | sort | uniq -c > ${READSDIR}/../Stats.{}Merge.MergedReads.txt &
+wait;
+perl ${GITREPO}/16S/StatsComparisonMergedVsMapped.pl ${TMPDIR}/${PROJECTID}.barcodeCounts.txt ${READSDIR}/../Stats.{}Merge.MergedReads.txt ${READSDIR}/../Stats.{}Merge.MappedReads.txt > ${READSDIR}/../Stats.{}Merge.Combined.txt &
+for i in `cat otus.fa | perl -pe "s/;\n/;/g"`; do sample=`echo ${i} | cut -f1 -d ";" | sed -e "s:^>::g"`; count=`echo ${i} | cut -f2 -d ";"`; otu=`cat reads2otus.txt | grep -w ${sample} | cut -f2`; seq=`echo ${i} | cut -f3 -d ";"`; if  grep -q -w "${otu}" otu_table.biom; then echo -e ">${sample};${otu};${count};\n${seq}"; fi; done > ${READSDIR}/../../Deliverables/CentroidInformation.fa && pbzip2 ${READSDIR}/../../Deliverables/CentroidInformation.fa &
+tar -cvf ${READSDIR}/../uparse{}.tar.bz2 -C ${TMPDIR} uparse{} -I pbzip2 &
+wait;
 ' &
 bigJob=`jobs -p`;
 
@@ -133,9 +139,9 @@ cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2 && rm ${TMPDIR}/{}.2.fq';
 
 #recover barcodes for deliverables
-${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2;
-${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADS} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2;
-
+${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2 &
+${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2 &
+wait;
 #move files to their destination for further analysis
 cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/;
 cp ${TMPDIR}/uparseStrict/otu_table.biom ${READSDIR}/../../Deliverables/OTU_Table.biom; 
