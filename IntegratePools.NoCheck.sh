@@ -38,10 +38,10 @@ if [ -z ${TMPDIR}/BarcodeList ];
 then echo ${barcode} > ${TMPDIR}/BarcodeList;
 elif cat ${TMPDIR}/BarcodeList | grep -q "${barcode}";
 then testname=`cat ${outputDirectory}/samplesheet.${outname}.csv | grep ${barcode} | cut -f3 -d ","`;
-if [ "${name}" != "${testname}" ];
-then echo -e "Colliding barcode found: ${barcode}\n Affected samples:\n${name}\n${testname}\n";
-rm -rf ${outputDirectory} && exit 1;
-fi;
+#if [ "${name}" != "${testname}" ];
+#then echo -e "Colliding barcode found: ${barcode}\n Affected samples:\n${name}\n${testname}\n";
+#rm -rf ${outputDirectory} && exit 1;
+#fi;
 else
 echo ${j} >> ${outputDirectory}/samplesheet.${outname}.csv;
 echo ${barcode} >> ${TMPDIR}/BarcodeList;
