@@ -70,5 +70,5 @@ for j in `ls ${outputDirectory}/${outname}Reads/Project_${outname}`
 done;
 cd ${outputDirectory}/${outname}WorkDir/Reads;
 echo "Total samples found: ${total}";
-echo ${GITREPO}/16S/fullPipelineSplit.sh | qsub -l ncpus=20 -q batch -N ${outname}.Process -d `pwd -P` -V;
+echo ${GITREPO}/16S/fullPipelineSplit.sh | qsub -l ncpus=20 -q batch -N ${outname}.Process -d `pwd -P` -V -o ${outputDirectory}/Logs/ -e ${outputDirectory}/Logs/;
 exit 0;
