@@ -148,7 +148,7 @@ cp ${TMPDIR}/uparseStrict/otu_table.biom ${READSDIR}/../../Deliverables/OTU_Tabl
 cp ${READSDIR}/../Stats.StrictMerge.Combined.txt ${READSDIR}/../../Deliverables/Read_QC.txt;
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample > ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
 cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
-cp ${GITREPO}/16S/CMMR16SV4Pipeline.ReadMe.txt ${READSDIR}/../../Deliverables;
+cp ${GITREPO}/16S/CMMR16SV4Pipeline.md ${READSDIR}/../../Deliverables;
 /cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
 chmod -R 755 ${READSDIR}/../../Deliverables;
 if [ -r "${READSDIR}/../../Deliverables/ProjectData.rds" ];
