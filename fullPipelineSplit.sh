@@ -1,5 +1,6 @@
 #!/bin/sh
 
+umask 002;
 export READSDIR=$1;
 export THREADS=$2;
 CURRWORKDIR=`pwd`;
@@ -33,6 +34,15 @@ THREADSPLIT=$[THREADS / 2];
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.1.fq.bz2 | sed 's/1:N:0:.*/1:N:0:/g' > ${TMPDIR}/{}.1.fq";
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.2.fq.bz2 | sed 's/2:N:0:.*/3:N:0:/g' > ${TMPDIR}/{}.2.fq";
 
+#Verify that the barcode counts file exists, and if it does not, create it
+if [ -z ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt ];
+then for i in `cat ${READSDIR}/../SampleList`;
+do count=`cat ${TMPDIR}/${i}.1.fq | wc -l`;
+count=$[count / 4];
+echo -e "${i}\t${count}";
+done > ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt;
+fi; 
+
 #merge both standard merge and strict merge
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Standard Merge'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 4 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.MergedStandard.fq; echo";
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; echo";
@@ -55,9 +65,8 @@ wait;
 
 #construct the fastas for uparse
 mkdir ${READSDIR}/../split_libraries;
-fq2fa ${TMPDIR}/seqs.strict.filtered.fq ${READSDIR}/../split_libraries/Strict.seqs.fna &
-wait;
-mkdir -p ${READSDIR}/../../Deliverables
+mkdir -p ${READSDIR}/../../Deliverables;
+fq2fa ${TMPDIR}/seqs.strict.filtered.fq ${READSDIR}/../split_libraries/Strict.seqs.fna;
 
 #simultaneous uparse
 echo "Strict" | parallel -I {} '
@@ -94,9 +103,11 @@ fi;
 cat ${TMPDIR}/uparse{}/Stats.{}Merge.otu_table.txt | tail -n +$var | sed "s/^ //g" | sed -re "s/: /\t/g" | sed "s/\.0$//g" > ${READSDIR}/../Stats.{}Merge.MappedReads.txt &
 cat ${READSDIR}/../split_libraries/{}.seqs.fna | grep "^>" | cut -f1 -d "_" | cut -f2 -d ">" | sort | uniq -c > ${READSDIR}/../Stats.{}Merge.MergedReads.txt &
 wait;
-perl ${GITREPO}/16S/StatsComparisonMergedVsMapped.pl ${TMPDIR}/${PROJECTID}.barcodeCounts.txt ${READSDIR}/../Stats.{}Merge.MergedReads.txt ${READSDIR}/../Stats.{}Merge.MappedReads.txt > ${READSDIR}/../Stats.{}Merge.Combined.txt &
-for i in `cat otus.fa | perl -pe "s/;\n/;/g"`; do sample=`echo ${i} | cut -f1 -d ";" | sed -e "s:^>::g"`; count=`echo ${i} | cut -f2 -d ";"`; otu=`cat reads2otus.txt | grep -w ${sample} | cut -f2`; seq=`echo ${i} | cut -f3 -d ";"`; if  grep -q -w "${otu}" otu_table.biom; then echo -e ">${sample};${otu};${count};\n${seq}"; fi; done > ${READSDIR}/../../Deliverables/CentroidInformation.fa && pbzip2 ${READSDIR}/../../Deliverables/CentroidInformation.fa &
-tar -cvf ${READSDIR}/../uparse{}.tar.bz2 -C ${TMPDIR} uparse{} -I pbzip2 &
+perl ${GITREPO}/16S/StatsComparisonMergedVsMapped.pl ${TMPDIR}/${PROJECTID}.barcodeCounts.txt ${READSDIR}/../Stats.{}Merge.MergedReads.txt ${READSDIR}/../Stats.{}Merge.MappedReads.txt > ${READSDIR}/../Stats.{}Merge.Combined.txt;
+for i in `cat ${TMPDIR}/uparse{}/otus.fa | perl -pe "s/;\n/;/g"`; do sample=`echo ${i} | cut -f1 -d ";" | sed -e "s:^>::g"`; count=`echo ${i} | cut -f2 -d ";"`; otu=`cat ${TMPDIR}/uparse{}/reads2otus.txt | grep -w ${sample} | cut -f2`; seq=`echo ${i} | cut -f3 -d ";"`; if  grep -q -w "${otu}" otu_table.biom; then echo -e ">${sample};${otu};${count};\n${seq}"; fi; done | pbzip2 -c > ${READSDIR}/../../Deliverables/CentroidInformation.fa.bz2 &
+tar -cvf ${READSDIR}/../uparse{}.tar.bz2 -C ${TMPDIR} uparse{} -I pbzip2 && rm -rf ${TMPDIR}/uparse{} &
+cp ${TMPDIR}/uparse{}/otu_table.biom ${READSDIR}/../../Deliverables/OTU_Table.biom &
+cp ${READSDIR}/../Stats.i{}Merge.Combined.txt ${READSDIR}/../../Deliverables/Read_QC.txt &
 wait;
 ' &
 bigJob=`jobs -p`;
@@ -125,6 +136,12 @@ cat ${TMPDIR}/Raw_Read3.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${T
 for i in `jobs -p | grep -v $bigJob`; do pidlist=`echo -e "\`echo $pidlist\`\n\`echo $((i + 1))\`"`; done
 wait;
 
+#Move the raw reads (minus Francisella) into Deliverables
+cat ${READSDIR}/../SampleList | xargs -I {} mkdir -p ${READSDIR}/../../Deliverables/RawSequences/{};
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.1.fq.bz2 && rm ${TMPDIR}/{}.1.fq';
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2 && rm ${TMPDIR}/{}.2.fq';
+
+
 #Move the temporary files to their final versions
 mv ${TMPDIR}/TempMerged_Reads.fq ${TMPDIR}/Merged_Reads.fq;
 mv ${TMPDIR}/Temp1.fq ${TMPDIR}/Raw_Read1.fq;
@@ -134,30 +151,26 @@ mv ${TMPDIR}/Temp2.fq ${TMPDIR}/Raw_Read3.fq;
 pbzip2 -f -p${THREADS} ${TMPDIR}/Raw_Read1.fq;
 pbzip2 -f -p${THREADS} ${TMPDIR}/Raw_Read3.fq;
 pbzip2 -f -p${THREADS} ${TMPDIR}/Merged_Reads.fq;
-cat ${READSDIR}/../SampleList | xargs -I {} mkdir -p ${READSDIR}/../../Deliverables/RawSequences/{};
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.1.fq.bz2 && rm ${TMPDIR}/{}.1.fq';
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2 && rm ${TMPDIR}/{}.2.fq';
 
 #recover barcodes for deliverables
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2 &
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2 &
 wait;
 #move files to their destination for further analysis
-cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/;
-cp ${TMPDIR}/uparseStrict/otu_table.biom ${READSDIR}/../../Deliverables/OTU_Table.biom; 
-cp ${READSDIR}/../Stats.StrictMerge.Combined.txt ${READSDIR}/../../Deliverables/Read_QC.txt;
+cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/ && rm ${TMPDIR}/*.fq.bz2;
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample > ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
 cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
-cp ${GITREPO}/16S/CMMR16SV4Pipeline.md ${READSDIR}/../../Deliverables;
+cp ${GITREPO}/16S/CMMR16SV4Pipeline.md ${READSDIR}/../../Deliverables/;
 /cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
+biom convert -i ${READSDIR}/../../Deliverables/OTU_Table.biom -o ${READSDIR}/../../Deliverables/OTU_Table.tsv --to-tsv --header-key taxonomy;
 chmod -R 755 ${READSDIR}/../../Deliverables;
 if [ -r "${READSDIR}/../../Deliverables/ProjectData.rds" ];
 then collab=`readlink -e ${READSDIR} | cut -f5 -d "/"`;
 pool=`readlink -e ${READSDIR} | cut -f6 -d "/"`;
 if [ "${collab}" != "StatsProject" ];
-then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu;
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu, carmical@bcm.edu;
 elif [ "${collab}" = "StatsProject" ];
-then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu;
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu, carmical@bcm.edu;
 fi;
 else echo -e "${collab} ${pool} run failed, please check reason" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has failed" gesell@bcm.edu;
 fi;
