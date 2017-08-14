@@ -27,7 +27,7 @@ cd ${READSDIR};
 export PROJECTID=`basename $(readlink -e ${READSDIR}/..) | sed 's/WorkDir//g'`;
 echo "Current Reads Directory: ${READSDIR}";
 echo "Current Project ID: ${PROJECTID}";
-THREADSPLIT=$[THREADS / 2];
+export THREADSPLIT=$[THREADS / 2];
 
 ## prepping the fastqs for processing ##
 #decompress fastqs to temporary directory
@@ -35,7 +35,7 @@ cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.1.fq.bz2 |
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.2.fq.bz2 | sed 's/2:N:0:.*/3:N:0:/g' > ${TMPDIR}/{}.2.fq";
 
 #Verify that the barcode counts file exists, and if it does not, create it
-if [ -z ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt ];
+if [ ! -z ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt ];
 then for i in `cat ${READSDIR}/../SampleList`;
 do count=`cat ${TMPDIR}/${i}.1.fq | wc -l`;
 count=$[count / 4];
@@ -104,11 +104,11 @@ cat ${TMPDIR}/uparse{}/Stats.{}Merge.otu_table.txt | tail -n +$var | sed "s/^ //
 cat ${READSDIR}/../split_libraries/{}.seqs.fna | grep "^>" | cut -f1 -d "_" | cut -f2 -d ">" | sort | uniq -c > ${READSDIR}/../Stats.{}Merge.MergedReads.txt &
 wait;
 perl ${GITREPO}/16S/StatsComparisonMergedVsMapped.pl ${TMPDIR}/${PROJECTID}.barcodeCounts.txt ${READSDIR}/../Stats.{}Merge.MergedReads.txt ${READSDIR}/../Stats.{}Merge.MappedReads.txt > ${READSDIR}/../Stats.{}Merge.Combined.txt;
-for i in `cat ${TMPDIR}/uparse{}/otus.fa | perl -pe "s/;\n/;/g"`; do sample=`echo ${i} | cut -f1 -d ";" | sed -e "s:^>::g"`; count=`echo ${i} | cut -f2 -d ";"`; otu=`cat ${TMPDIR}/uparse{}/reads2otus.txt | grep -w ${sample} | cut -f2`; seq=`echo ${i} | cut -f3 -d ";"`; if  grep -q -w "${otu}" otu_table.biom; then echo -e ">${sample};${otu};${count};\n${seq}"; fi; done | pbzip2 -c > ${READSDIR}/../../Deliverables/CentroidInformation.fa.bz2 &
-tar -cvf ${READSDIR}/../uparse{}.tar.bz2 -C ${TMPDIR} uparse{} -I pbzip2 && rm -rf ${TMPDIR}/uparse{} &
+for i in `cat ${TMPDIR}/uparse{}/otus.fa | perl -pe "s/;\n/;/g"`; do sample=`echo ${i} | cut -f1 -d ";" | sed -e "s:^>::g"`; count=`echo ${i} | cut -f2 -d ";"`; otu=`cat ${TMPDIR}/uparse{}/reads2otus.txt | grep -w ${sample} | cut -f2`; seq=`echo ${i} | cut -f3 -d ";"`; if grep -q -w "${otu}" otu_table.biom; then echo -e ">${sample};${otu};${count};\n${seq}"; fi; done | pbzip2 -c > ${READSDIR}/../../Deliverables/CentroidInformation.fa.bz2 &
 cp ${TMPDIR}/uparse{}/otu_table.biom ${READSDIR}/../../Deliverables/OTU_Table.biom &
-cp ${READSDIR}/../Stats.i{}Merge.Combined.txt ${READSDIR}/../../Deliverables/Read_QC.txt &
+cp ${READSDIR}/../Stats.{}Merge.Combined.txt ${READSDIR}/../../Deliverables/Read_QC.txt &
 wait;
+tar -cvf ${READSDIR}/../uparse{}.tar.bz2 -C ${TMPDIR} uparse{} -I pbzip2 && rm -rf ${TMPDIR}/uparse{};
 ' &
 bigJob=`jobs -p`;
 
@@ -159,20 +159,21 @@ wait;
 #move files to their destination for further analysis
 cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/ && rm ${TMPDIR}/*.fq.bz2;
 head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample > ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
-cat  ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
+cat ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
 cp ${GITREPO}/16S/CMMR16SV4Pipeline.md ${READSDIR}/../../Deliverables/;
-/cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
 biom convert -i ${READSDIR}/../../Deliverables/OTU_Table.biom -o ${READSDIR}/../../Deliverables/OTU_Table.tsv --to-tsv --header-key taxonomy;
+/cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
+cat ${READSDIR}/../../Deliverables/Read_QC.txt | cut -f1 | head -n -33 > ${READSDIR}/../../Deliverables/Mapping_File_Template.csv;
 chmod -R 755 ${READSDIR}/../../Deliverables;
 if [ -r "${READSDIR}/../../Deliverables/ProjectData.rds" ];
 then collab=`readlink -e ${READSDIR} | cut -f5 -d "/"`;
 pool=`readlink -e ${READSDIR} | cut -f6 -d "/"`;
 if [ "${collab}" != "StatsProject" ];
-then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu, carmical@bcm.edu;
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu, carmical@bcm.edu, jcope@diversigen.com;
 elif [ "${collab}" = "StatsProject" ];
 then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu, carmical@bcm.edu;
 fi;
-else echo -e "${collab} ${pool} run failed, please check reason" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has failed" gesell@bcm.edu;
+else echo -e "${collab} ${pool} run failed, please check reason" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has failed" ${USER}@bcm.edu;
 fi;
 
 #return to working directory when script was launched
