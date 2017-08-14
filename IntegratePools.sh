@@ -103,5 +103,6 @@ ls  ${outputDirectory}/${outname}WorkDir/Reads/ | grep ".1.fq.bz2" | sed "s:.1.f
 cd ${outputDirectory};
 for i in `cat ${outputDirectory}/${outname}WorkDir/SampleList`; do count=`bzcat ${outputDirectory}/${outname}WorkDir/Reads/${i}.1.fq.bz2 | wc -l`; count=`echo $((count / 4))`; echo -e "${i}\t${count}" >> ${outputDirectory}/${outname}.barcodeCounts.txt;
 done;
+rm -rf ${TMPDIR}/*;
 ${GITREPO}/16S/fullPipelineSplit.sh ${outputDirectory}/${outname}WorkDir/Reads/ ${THREADS};
 exit 0;
