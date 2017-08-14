@@ -26,6 +26,10 @@ fi;
 
 cd /gpfs1/projects/jgesell;
 
+if [ -d "${firstName}${lastName}/${poolName}" ];
+then poolName=`echo ${poolName}.Pool${pool}`;
+fi;
+
 #make the necessary directory structures
 mkdir -p ${firstName}${lastName}/${poolName};
 cd ${firstName}${lastName}/${poolName};
@@ -39,12 +43,13 @@ if [ -z "$prefix" ];
 fi;
 
 #cat in the information for files that cannot be softlinked
+echo -e "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject" > samplesheet.${lastName}${poolName}.csv
 if [ -e "${sampleList}" ];
 then cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep -f "${sampleList}" > ${lastName}${poolName}WorkDir/SampleList;
-cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep -f "${sampleList}" > samplesheet.${lastName}${poolName}.csv
+cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep -f "${sampleList}" >> samplesheet.${lastName}${poolName}.csv
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep -f "${sampleList}" >  ${lastName}${poolName}.barcodeCounts.txt
 else cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}${poolName}WorkDir/SampleList;
-cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" > samplesheet.${lastName}${poolName}.csv
+cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" >> samplesheet.${lastName}${poolName}.csv
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep "${prefix}" >  ${lastName}${poolName}.barcodeCounts.txt
 fi;
 
@@ -73,6 +78,14 @@ for i in `ls ../../StatsProject/16S/Pool${pool}/ | grep -v "Logs" | grep -v " Po
 numSamples=`cat ${lastName}${poolName}WorkDir/SampleList | wc -l`;
 echo "Total samples found: ${numSamples}"; 
 
+#Allocate the threads needed for the pipeline
+if [ ${numSamples} -lt 40 ];
+then PROCS=$[ $[numSamples / 2] + $[numSamples % 2]];
+THREADS=${numSamples};
+else PROCS=20;
+THREADS=40;
+fi;
+
 #automatically launch the processing job
 link=`readlink -e ${lastName}${poolName}WorkDir/Reads/;`
-echo "${GITREPO}/16S/fullPipelineSplit.sh $link 40" | qsub -l ncpus=20 -q batch -N ${lastName}${poolName}.Process -d `pwd -P` -V;
+echo "${GITREPO}/16S/fullPipelineSplit.sh ${link} ${THREADS} " | qsub -l ncpus=${PROCS} -q batch -N ${lastName}${poolName}.Process -d `pwd -P` -V;

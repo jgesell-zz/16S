@@ -34,7 +34,8 @@ do count=`bzcat ${input}/*WorkDir/Reads/${j}.1.fq | wc -l`;
 count=$[count / 4];
 echo -e "${j}\t${count}";
 done >> ${outputDirectory}/${outname}.barcodeCounts.txt;
-else cat ${input}/*.barcodeCounts.txt | grep -f ${input}/*WorkDir/SampleList | sed -e "s:\t:.${count}\t:g" >> ${outputDirectory}/${outname}.barcodeCounts.txt;
+else name=`echo ${input} | rev | cut -f1 -d "/" | rev`;
+cat ${input}/*.barcodeCounts.txt | grep -f ${input}/*WorkDir/SampleList | sed -e "s:\t:.${name}\t:g" >> ${outputDirectory}/${outname}.barcodeCounts.txt;
 fi;
 
 #Create the links to the reads
@@ -69,20 +70,20 @@ cat ${input}/sampleSheet.notDemultiplexed.*.csv >> ${outputDirectory}/sampleShee
 count=`echo $input | rev | cut -f1 -d "/" | rev`;
 echo "Total samples from pool ${input} = ${counter}";
 if [ "${counter}" -eq 0 ];
-then echo "Error: no samples found for pool ${input}!";
+then echo "Error: no samples found for pool ${input}\!";
 exit 1;
 fi;
 done;
 
 #Creates simlinks to the read files in the working directory
-for j in `ls ${outputDirectory}/${outname}Reads/Project_${outname}`
-	do name=`echo $j | rev | cut -f1 -d "/" | rev | sed 's:Sample_::g'`;
-	for seq in `ls ${outputDirectory}/${outname}Reads/Project_${outname}/${j} | grep "bz2"`
-		do link=`echo $seq | sed -r 's:_[ACGNT]+_L001_R1_001.fastq:@.1.fq:g' | sed -r 's:_[ACGNT]+_L001_R2_001.fastq:@.2.fq:g'`;
-		temp=`echo $link | cut -f1 -d "@"`
-		link=`echo $link | sed "s:${temp}:${name}:g" | sed 's:@::g'`;
-		ln -s ${outputDirectory}/${outname}Reads/Project_${outname}/${j}/${seq} ${outputDirectory}/${outname}WorkDir/Reads/${link};
-	done;
+for j in `ls ${outputDirectory}/${outname}Reads/Project_${outname}`;
+do name=`echo $j | rev | cut -f1 -d "/" | rev | sed 's:Sample_::g'`;
+for seq in `ls ${outputDirectory}/${outname}Reads/Project_${outname}/${j} | grep "bz2" | tr "+" "A"`
+do link=`echo $seq | sed -r 's:_[ACGNT]+_L001_R1_001.fastq:@.1.fq:g' | sed -r 's:_[ACGNT]+_L001_R2_001.fastq:@.2.fq:g'`;
+temp=`echo $link | cut -f1 -d "@"`
+link=`echo $link | sed "s:${temp}:${name}:g" | sed 's:@::g'`;
+ln -s ${outputDirectory}/${outname}Reads/Project_${outname}/${j}/${seq} ${outputDirectory}/${outname}WorkDir/Reads/${link};
+done;
 done;
 cd ${outputDirectory}/${outname}WorkDir/Reads;
 echo "Total samples found: ${total}";

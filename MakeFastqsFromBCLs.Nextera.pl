@@ -5,14 +5,13 @@
 
 #CMMR Pipeline for converting BCLs to a .biom file
 #Author: Matt Wong
-#Date Updated: 3-09-17
-#Updated By: Jon Gesell
+#Date Updated: 2-12-14
 #Version: 0.1
 #
 #
 #
 #Comments need throughout
-#Take in a BCL directory path and an HGSC 16S samplesheet, and generates a .biom file with the samples in it.  Modified for dual-barcode, not just Nextera.
+#Take in a BCL directory path and an HGSC 16S samplesheet, and generates a .biom file with the samples in it. 
 #
 
 
@@ -107,6 +106,7 @@ sub cleanSampleNames {
 		$name =~ s/\s+/./g;
 		$name =~ s/\.\././g;
 		$name =~ s/_/./g;
+		$name =~ s/\./-/g;
 		push @new, $name;
 	}
 	return(\@new);
@@ -124,8 +124,8 @@ sub reverseComp {
 	}
 	my @reverse;
 	foreach my $seq (@sequences) {
-		$seq =~ tr/ACGT/TGCA/;
-		$seq = reverse($seq);
+		#$seq = reverse($seq);
+		#$seq =~ tr/ACGT/TGCA/;
 		push @reverse, $seq;
 	}
 	return (\@reverse);
@@ -273,7 +273,7 @@ sub parseSampleSheetText {
 		unless (scalar(@parts) == 2) {
 			die "Text samplesheet not delimited by tab or comma\n";
 		}
-		if ($parts[1] =~ m/[^ACGT]/) {
+		if ($parts[1] =~ m/[^ACGT\-]/) {
 			die "barcode $parts[1] contains non-ACGT characters. Line: $line\n";
 		}
 		push @samples, $parts[0];
@@ -316,9 +316,10 @@ sub getFlowcellId {
 		$xmlLines .= $line;
 	}
 	my $xmlHash = $xml_converter->fromXMLStringtoHash($xmlLines);
-	my $flowcellId = $xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'RunFlowcellId'}->{'text'};
-	my $read1Length = ($xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[0]->{'LastCycle'}->{'text'} + 1) - ($xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[0]->{'FirstCycle'}->{'text'});
-	my $read2Length = ($xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[-1]->{'LastCycle'}->{'text'} + 1) - ($xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[-1]->{'FirstCycle'}->{'text'});
+	my $flowcellId = $xmlHash->{'ImageAnalysis'}->{'Run'}->{'RunParameters'}->{'RunFlowcellId'}->{'text'};
+	print STDOUT "Flow Cell ID: $flowcellId";
+	my $read1Length = ($xmlHash->{'ImageAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[0]->{'LastCycle'}->{'text'} + 1) - ($xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[0]->{'FirstCycle'}->{'text'});
+	my $read2Length = ($xmlHash->{'ImageAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[-1]->{'LastCycle'}->{'text'} + 1) - ($xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'RunParameters'}->{'Reads'}->[-1]->{'FirstCycle'}->{'text'});
 	if ($read1Length != $read2Length) {
 		warn ("Read1 and Read2 are not the right length; Read1 $read1Length, Read2 $read2Length\n");
 	}
@@ -326,7 +327,7 @@ sub getFlowcellId {
 	if ($read2Length < $read1Length) {
 		$barcodeMask = $read2Length;
 	}
-	my $laneId = $xmlHash->{'BaseCallAnalysis'}->{'Run'}->{'TileSelection'}->{'Lane'}->{'Index'};
+	my $laneId = $xmlHash->{'ImageAnalysis'}->{'Run'}->{'TileSelection'}->{'Lane'}->{'Index'};
 	return ($flowcellId, $laneId, $barcodeMask);
 }
 
@@ -349,7 +350,8 @@ sub callBcl {
 	#if (-d $projDir) {
 	#	die "$projDir already exists, this will fail\n";
 	#}
-	my $cmd = "configureBclToFastq.pl --input-dir $bclDir --output-dir $projDir --use-bases-mask $barcodeMask,i12n,$barcodeMask --sample-sheet $samplesheet --fastq-cluster-count 0 --mismatches 1 2>Logs/$projectName.configureBcl.err";
+	my $cmd = "configureBclToFastq.pl --input-dir $bclDir --output-dir $projDir --use-bases-mask y*,y*,y*,y* --sample-sheet $samplesheet --fastq-cluster-count 0 --mismatches 1 2>Logs/$projectName.configureBcl.err";
+	print STDOUT $cmd;
 	system($cmd);
 	$projDir = `readlink -e $projDir`;
 	chomp $projDir;
@@ -375,7 +377,8 @@ sub callBclRaw {
 	#if (-d $projDir) {
 	#	die "$projDir already exists, this will fail\n";
 	#}
-	my $cmd = "configureBclToFastq.pl --input-dir $bclDir --output-dir $projDir --use-bases-mask $barcodeMask,y12n,$barcodeMask --sample-sheet $samplesheet --fastq-cluster-count 0 2>Logs/$projectName.configureBcl.barcodes.err";
+	my $cmd = "configureBclToFastq.pl --input-dir $bclDir --output-dir $projDir --use-bases-mask y*,y*,y*,y* --sample-sheet $samplesheet --fastq-cluster-count 0 2>Logs/$projectName.configureBcl.barcodes.err";
+	print STDOUT $cmd;
 	capture($cmd);
 	$cmd = "make -j $threads -C $projDir 1>Logs/make.$projectName.barcodes.out 2>Logs/make.$projectName.barcodes.err";
 	capture($cmd);
@@ -390,11 +393,14 @@ sub makeBclSampleSheet {
 	my $flowcellId = $_[1];
 	my $laneId = $_[2];
 	my $projectName = $_[3];
-	my $header = "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject";
+	#my $header = "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject";
+	my $header = "Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,I5_Index_ID,index2,Sample_Project,Description";
 	my @sampleStrs;
 	push @sampleStrs, $header;
 	foreach my $sample (keys %samplesToBarcodes) {
-		my $sampleStr = "$flowcellId,$laneId,$sample,,$samplesToBarcodes{$sample},,N,$laneId,MW,$projectName";
+		my @parts = split /-/ , $samplesToBarcodes{$sample};
+		#my $sampleStr = "$flowcellId,$laneId,$sample,,$samplesToBarcodes{$sample},,N,$laneId,MW,$projectName";
+		my $sampleStr = "$sample,,$laneId,$flowcellId,,$parts[0],,$parts[1],$projectName,";
 		push @sampleStrs, $sampleStr;
 	}
 	my $printStr = join "\n", @sampleStrs;
@@ -490,7 +496,6 @@ sub makeBarcodes {
 	#Runs bcl2fastq in non-demultiplexing mode
 	#Basically, every read that passes filter is dumped into a monolithic fastq
 
-
 	my $bclDir = $_[0];
 	my $flowcellId = $_[1];
 	my $laneId = $_[2];
@@ -499,8 +504,8 @@ sub makeBarcodes {
 	my $barcodeMask = $_[5];
 	my $samplesheet = "sampleSheet.notDemultiplexed.$projName.csv";
 	open OUT, ">$samplesheet";
-	print OUT "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject\n";
-	print OUT "$flowcellId,$laneId,$projectName,not_demultiplexed,,$projectName,N,$flowcellId,MCW,$projectName\n";
+	print OUT "Sample_ID,Sample_Name,Sample_Plate,Sample_Well,I7_Index_ID,index,I5_Index_ID,index2,Sample_Project,Description";
+	print OUT "$projectName,$projectName,$laneId,$laneId,,,,,$projectName,not_demultiplexed";
 	close OUT;
 	return(callBclRaw($projName, $bclDir, $samplesheet, $laneId, $threads, $barcodeMask));
 }
