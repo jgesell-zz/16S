@@ -45,9 +45,9 @@ fi;
 #cat in the information for files that cannot be softlinked
 echo -e "FCID,Lane,SampleID,SampleRef,Index,Description,Control,Recipe,Operator,SampleProject" > samplesheet.${lastName}${poolName}.csv
 if [ -e "${sampleList}" ];
-then cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep -f "${sampleList}" > ${lastName}${poolName}WorkDir/SampleList;
-cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep -f "${sampleList}" >> samplesheet.${lastName}${poolName}.csv
-cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep -f "${sampleList}" >  ${lastName}${poolName}.barcodeCounts.txt
+then cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep -wf "${sampleList}" > ${lastName}${poolName}WorkDir/SampleList;
+cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep -wf "${sampleList}" >> samplesheet.${lastName}${poolName}.csv
+cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep -wf "${sampleList}" >  ${lastName}${poolName}.barcodeCounts.txt
 else cat ../../StatsProject/16S/Pool${pool}/Pool${pool}WorkDir/SampleList | grep "${prefix}" > ${lastName}${poolName}WorkDir/SampleList;
 cat ../../StatsProject/16S/Pool${pool}/samplesheet.*${pool}.csv | grep "${prefix}" >> samplesheet.${lastName}${poolName}.csv
 cat ../../StatsProject/16S/Pool${pool}/Pool${pool}.barcodeCounts.txt | grep "${prefix}" >  ${lastName}${poolName}.barcodeCounts.txt
