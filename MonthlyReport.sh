@@ -1,0 +1,15 @@
+cd /gpfs1/projects/jgesell/CMMRControls/;
+for i in `find * -maxdepth 0 -mtime -60 -ls | tr -s " " "," | grep -v "ToMerge\|MonthlyReport" | grep 16S`; 
+do pool=`echo ${i} | cut -f11 -d ","`; 
+echo ${pool}; 
+done > ToMerge;
+poolID="CMMR.MonthlyReport.16S.$(date +%Y.%m.%d)";
+jobIDs=$(~gesell/Programs/gitHub/16S/MergePools.sh ToMerge ${poolID});
+while [ `qstat | grep -v "Job ID\|\-\-\-\-" | cut -f1 -d " " | grep "${jobIDs}" | wc -l` -gt 0 ];
+do sleep 10;
+done;
+cd /gpfs1/projects/jgesell/CMMRControls/${poolID}/Deliverables;
+for i in `cat Mapping_File_Template.csv | grep -v SampleID`; do pool=`echo ${i} | rev | cut -f1 -d "." | rev`; if [ "$(echo ${i} | grep -c LAFT)" -gt 0  ]; then type="Positive PCR Control"; elif [ "$(echo ${i} | grep -c CMMRBlextraction)" -gt 0 ]; then type="Extraction Blank"; elif [ "$(echo ${i} | grep -c CMMRBl)" -gt 0 ]; then type="PCR Blank"; elif [ "$(echo ${i} | grep -c CMMRGD)" -gt 0 ]; then type="Positive Extraction Control"; else type="Blank"; fi; echo -e "${i},${pool},${type}"; done > Mapping_File_Template.csv2;
+echo "Sample ID,Pool ID,Sample Type" > Mapping_File_Template.csv;
+cat Mapping_File_Template.csv2 >> Mapping_File_Template.csv && rm Mapping_File_Template.csv2;
+exit 0;
