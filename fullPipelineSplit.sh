@@ -35,7 +35,7 @@ cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.1.fq.bz2 |
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "bzcat {}.2.fq.bz2 | sed 's/2:N:0:.*/3:N:0:/g' > ${TMPDIR}/{}.2.fq";
 
 #Verify that the barcode counts file exists, and if it does not, create it
-if [ ! -z ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt ];
+if [ ! -f ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt ];
 then for i in `cat ${READSDIR}/../SampleList`;
 do count=`cat ${TMPDIR}/${i}.1.fq | wc -l`;
 count=$[count / 4];
@@ -45,28 +45,27 @@ fi;
 
 #merge both standard merge and strict merge
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Standard Merge'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 4 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.MergedStandard.fq; echo";
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; echo";
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Strict Merge and Compress'; usearch70 -fastq_mergepairs ${TMPDIR}/{}.1.fq -reverse ${TMPDIR}/{}.2.fq -fastq_minovlen 50 -fastq_maxdiffs 0 -fastq_minmergelen 252 -fastq_maxmergelen 254 -fastq_truncqual 5 -fastqout ${TMPDIR}/{}.Merged_Reads.fq; lbzip2 -n1 ${TMPDIR}/{}.1.fq; lbzip2 -n1 ${TMPDIR}/{}.2.fq; echo";
 
 #filter three ways (raw merged, standard merged, strict merged)
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Raw Merge'; usearch70 -fastq_filter ${TMPDIR}/{}.MergedStandard.fq -fastq_maxee .05 -fastqout ${TMPDIR}/{}.filteredRaw.fq && rm ${TMPDIR}/{}.MergedStandard.fq; echo";
 cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} "echo '{} Filter Strict Merge'; usearch70 -fastq_filter ${TMPDIR}/{}.Merged_Reads.fq -fastq_maxee .05 -relabel \"{}_\" -fastqout ${TMPDIR}/{}.filteredStrict.fq && rm ${TMPDIR}/{}.Merged_Reads.fq; echo";
 
 #concatenate demultiplexed fastqs into monolithic variants
-cat ${TMPDIR}/*.filteredStrict.fq > ${TMPDIR}/seqs.strict.fq &
-cat ${TMPDIR}/*.filteredRaw.fq > ${TMPDIR}/seqs.raw.fq &
+(cat ${TMPDIR}/*.filteredStrict.fq > ${TMPDIR}/seqs.strict.fq && rm ${TMPDIR}/*.filteredStrict.fq) &
+(cat ${TMPDIR}/*.filteredRaw.fq > ${TMPDIR}/seqs.raw.fq && rm ${TMPDIR}/*.filteredRaw.fq) &
 cat ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt | grep -f ${READSDIR}/../SampleList > ${TMPDIR}/${PROJECTID}.barcodeCounts.txt &
 wait;
-rm ${TMPDIR}/*.filteredStrict.fq ${TMPDIR}/*.filteredRaw.fq &
 
 #filter out phiX bleed
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/seqs.strict.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq &
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/seqs.raw.filtered.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq &
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/Merged_Reads.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq &
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/Raw_Merged_Reads.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq &
 wait;
 
 #construct the fastas for uparse
 mkdir ${READSDIR}/../split_libraries;
 mkdir -p ${READSDIR}/../../Deliverables;
-fq2fa ${TMPDIR}/seqs.strict.filtered.fq ${READSDIR}/../split_libraries/Strict.seqs.fna;
+fq2fa ${TMPDIR}/Merged_Reads.fq ${READSDIR}/../split_libraries/Strict.seqs.fna;
 
 #simultaneous uparse
 echo "Strict" | parallel -I {} '
@@ -114,32 +113,32 @@ bigJob=`jobs -p`;
 
 ## construct the deliverables ##
 #set up francisella filter
-mv ${TMPDIR}/seqs.strict.filtered.fq ${TMPDIR}/Merged_Reads.fq;
-mv ${TMPDIR}/seqs.raw.filtered.fq ${TMPDIR}/Raw_Merged_Reads.fq;
-fq2fa ${TMPDIR}/Raw_Merged_Reads.fq ${TMPDIR}/Raw_Merged_Reads.fa;
-cat ${READSDIR}/../SampleList | parallel -j1 -I {} "cat ${TMPDIR}/{}.1.fq" > ${TMPDIR}/Raw_Read1.fq;
-cat ${READSDIR}/../SampleList | parallel -j1 -I {} "cat ${TMPDIR}/{}.2.fq" > ${TMPDIR}/Raw_Read3.fq;
+fq2fa ${TMPDIR}/Raw_Merged_Reads.fq ${TMPDIR}/Raw_Merged_Reads.fa &
+cat ${READSDIR}/../SampleList | parallel -j1 -I {} "bzcat ${TMPDIR}/{}.1.fq.bz2" > ${TMPDIR}/Raw_Read1.fq &
+cat ${READSDIR}/../SampleList | parallel -j1 -I {} "bzcat ${TMPDIR}/{}.2.fq.bz2" > ${TMPDIR}/Raw_Read3.fq &
+smallJobs=`jobs -p | grep -v "${bigJob}"`;
+wait ${smallJobs};
 cat ${TMPDIR}/Raw_Read1.fq ${TMPDIR}/Raw_Read3.fq > ${TMPDIR}/Raw_Reads.fq;
 fq2fa ${TMPDIR}/Raw_Reads.fq ${TMPDIR}/Raw_Reads.fa;
 usearch70 -fastq_mergepairs ${TMPDIR}/Raw_Read1.fq -reverse ${TMPDIR}/Raw_Read3.fq -fastaout ${TMPDIR}/temp.fa;
-cat ${TMPDIR}/temp.fa >> ${TMPDIR}/Raw_Reads.fa;
-cat ${TMPDIR}/Raw_Merged_Reads.fa >> ${TMPDIR}/Raw_Reads.fa;
+cat ${TMPDIR}/temp.fa >> ${TMPDIR}/Raw_Reads.fa && rm ${TMPDIR}/temp.fa;
+cat ${TMPDIR}/Raw_Merged_Reads.fa >> ${TMPDIR}/Raw_Reads.fa && rm ${TMPDRI}/Raw_Merged_Reads.fa;
 
 #filter francisella
-usearch70 -usearch_global ${TMPDIR}/Raw_Reads.fa -db ${FRANCISELLA}/Francisella_V4.udb -strand both -id .968 -uc ${TMPDIR}/Francisella.uc -maxaccepts 0 -maxrejects 0 -threads ${THREADS};
+usearch70 -usearch_global ${TMPDIR}/Raw_Reads.fa -db ${FRANCISELLA}/Francisella_V4.udb -strand both -id .968 -uc ${TMPDIR}/Francisella.uc -maxaccepts 0 -maxrejects 0 -threads ${THREADS} && rm ${TMPDIR}/Raw_Reads.fa;
 
 #remove francisella
 cat ${TMPDIR}/Francisella.uc | cut -f9,10 | grep -v "*$" | cut -f1 | cut -f1 -d " " > ${TMPDIR}/Remove;
-cat ${TMPDIR}/Raw_Merged_Reads.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/TempMerged_Reads.fq &
-cat ${TMPDIR}/Raw_Read1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp1.fq &
-cat ${TMPDIR}/Raw_Read3.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp2.fq &
-for i in `jobs -p | grep -v $bigJob`; do pidlist=`echo -e "\`echo $pidlist\`\n\`echo $((i + 1))\`"`; done
-wait;
+(cat ${TMPDIR}/Raw_Merged_Reads.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Merged_Reads.fq && rm ${TMPDIR}/Raw_Merged_Reads.fq) &
+(cat ${TMPDIR}/Raw_Read1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp1.fq && rm ${TMPDIR}/Raw_Read1.fq) &
+(cat ${TMPDIR}/Raw_Read3.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove > ${TMPDIR}/Temp2.fq && rm ${TMPDIR}/Raw_Read3.fq) &
+smallJobs=`jobs -p | grep -v "${bigJob}"`;
+wait ${smallJobs};
 
 #Move the raw reads (minus Francisella) into Deliverables
 cat ${READSDIR}/../SampleList | xargs -I {} mkdir -p ${READSDIR}/../../Deliverables/RawSequences/{};
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.1.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.1.fq.bz2 && rm ${TMPDIR}/{}.1.fq';
-cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'cat ${TMPDIR}/{}.2.fq | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2 && rm ${TMPDIR}/{}.2.fq';
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'bzcat ${TMPDIR}/{}.1.fq.bz2 | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.1.fq.bz2 && rm ${TMPDIR}/{}.1.fq.bz2';
+cat ${READSDIR}/../SampleList | parallel -j${THREADS} -I {} 'bzcat ${TMPDIR}/{}.2.fq.bz2 | perl ${GITREPO}/Miscellaneous/fastqfilter.pl -v ${TMPDIR}/Remove | pbzip2 -p1 -c > ${READSDIR}/../../Deliverables/RawSequences/{}/{}.2.fq.bz2 && rm ${TMPDIR}/{}.2.fq.bz2';
 
 
 #Move the temporary files to their final versions
@@ -155,12 +154,14 @@ pbzip2 -f -p${THREADS} ${TMPDIR}/Merged_Reads.fq;
 #recover barcodes for deliverables
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2 &
 ${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2 &
-wait;
+smallJobs=`jobs -p | grep -v "${bigJob}"`;
+wait ${smallJobs};
+
 #move files to their destination for further analysis
-cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/ && rm ${TMPDIR}/*.fq.bz2;
-head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample > ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
-cat ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt;
-cp ${GITREPO}/16S/CMMR16SV4Pipeline.md ${READSDIR}/../../Deliverables/;
+(cp ${TMPDIR}/*.fq.bz2 ${READSDIR}/../../Deliverables/ && rm ${TMPDIR}/*.fq.bz2) &
+(head -1 ${GITREPO}/Miscellaneous/IlluminaHeaderExample > ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt && cat ${READSDIR}/../../samplesheet.${PROJECTID}.csv | grep -f ${READSDIR}/../SampleList | cut -f3,5 -d "," | tr "," "\t" | tail -n+1 | sed -re 's/(.*)\t(.*)/\1\t\2\tGGACTACHVGGGTWTCTAAT\tGTGCCAGCMGCCGCGGTAA\t\1/g' >> ${READSDIR}/../../Deliverables/Demultiplex_Sheet.txt) &
+cp ${GITREPO}/16S/CMMR16SV4Pipeline.md ${READSDIR}/../../Deliverables/ &
+wait;
 biom convert -i ${READSDIR}/../../Deliverables/OTU_Table.biom -o ${READSDIR}/../../Deliverables/OTU_Table.tsv --to-tsv --header-key taxonomy;
 /cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
 cat ${READSDIR}/../../Deliverables/Read_QC.txt | cut -f1 | head -n -33 > ${READSDIR}/../../Deliverables/Mapping_File_Template.csv;
@@ -169,9 +170,9 @@ if [ -r "${READSDIR}/../../Deliverables/ProjectData.rds" ];
 then collab=`readlink -e ${READSDIR} | cut -f5 -d "/"`;
 pool=`readlink -e ${READSDIR} | cut -f6 -d "/"`;
 if [ "${collab}" != "StatsProject" ];
-then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,dls1@bcm.edu,mcross@bcm.edu,Jacqueline.O\'Brien@bcm.edu,Nadim.Ajami@bcm.edu, carmical@bcm.edu, jcope@diversigen.com;
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,mcross@bcm.edu,Nadim.Ajami@bcm.edu,carmical@bcm.edu,nasser@bcm.edu;
 elif [ "${collab}" = "StatsProject" ];
-then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu, carmical@bcm.edu;
+then echo -e "${collab} ${pool} has completed running thru the 16S V4 pipeline.  Attached are the read statistics for this run.\nAll other deliverables can be found on the CMMR cluster at the following location:\t`readlink -e ${READSDIR}/../../Deliverables`" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has completed" gesell@bcm.edu,carmical@bcm.edu;
 fi;
 else echo -e "${collab} ${pool} run failed, please check reason" | mail -a ${READSDIR}/../../Deliverables/Read_QC.txt -s "${collab} ${pool} has failed" ${USER}@bcm.edu;
 fi;
