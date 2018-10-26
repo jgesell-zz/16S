@@ -7,8 +7,8 @@ export outputDirectory=$2;
 
 #Check to see if the merge directory already exists
 if [ ! -f $outputDirectory ];
-	then mkdir $outputDirectory;
-	echo "Made output directory at $outputDirectory";
+then mkdir $outputDirectory;
+echo "Made output directory at $outputDirectory";
 fi
 
 export outputDirectory=`readlink -e \`echo $outputDirectory\``;

@@ -36,7 +36,7 @@ exit 1;
 fi;
 
 #Create the Controls and run the full pool for stats.
-${GITREPO}/16S/PoolLink.V1V3.sh CMMR_Controls `echo ${Pool} | sed -e "s:Pool::g"` CMMR `echo "${Pool}.16S"` &
+${GITREPO}/16S/PoolLink.V1V3.sh C CMMR_Controls `echo ${Pool} | sed -e "s:Pool::g"` CMMR `echo "${Pool}.16S"` &
 echo "${Pool} has finished MakeFastQs and can be separated by project." | mail -s "${Pool} has finished MakeFQs" ${USER}@bcm.edu &
 echo "/users/gesell/Programs/ToTest/fullPipelineSplit.V1V3.sh `pwd -P`/${Pool}WorkDir/Reads 40" | qsub -l ncpus=20 -q batch -N ${Pool}.Process -d `pwd -P` -o Logs/ -e Logs/ -V &
 wait;

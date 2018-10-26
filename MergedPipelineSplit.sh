@@ -76,7 +76,7 @@ usearch70 -usearch_global ${TMPDIR}/uparse{}/otus.fa -db ${SILVA}/silva_V4.udb -
 cat ${TMPDIR}/uparse{}/derep.fna | grep -A1 "size=1;" | cut -f2 -d ">" | ${GITREPO}/Miscellaneous/getSeq ${TMPDIR}/uparse{}/derep.fna > ${TMPDIR}/uparse{}/singletons.fna;
 usearch70 -usearch_global ${TMPDIR}/uparse{}/singletons.fna -db ${TMPDIR}/uparse{}/sorted.fa -id .99 -uc ${TMPDIR}/uparse{}/singletons2otus.uc -strand plus -threads ${THREADS} -maxaccepts 32 -maxrejects 128 -minqt 1 -leftjust -rightjust -wordlength 12;
 cd ${TMPDIR}/uparse{};
-${WONGGITREPO}/16S_workflows/resolveIterativeUparse.pl ${TMPDIR}/uparse{}/cluster_*.uc ${TMPDIR}/uparse{}/singletons2otus.uc ${TMPDIR}/uparse{}/otus2taxa.uc --derep ${TMPDIR}/uparse{}/derep.uc --chimeras ${TMPDIR}/uparse{}/chimeras.txt --uchime ${TMPDIR}/uparse{}/uchimeref.uc --taxonomy ${SILVA}/silva.map;
+${GITREPO}/Miscellaneous/resolveIterativeUparse.pl ${TMPDIR}/uparse{}/cluster_*.uc ${TMPDIR}/uparse{}/singletons2otus.uc ${TMPDIR}/uparse{}/otus2taxa.uc --derep ${TMPDIR}/uparse{}/derep.uc --chimeras ${TMPDIR}/uparse{}/chimeras.txt --uchime ${TMPDIR}/uparse{}/uchimeref.uc --taxonomy ${SILVA}/silva.map;
 biom summarize-table -i ${TMPDIR}/uparse{}/otu_table.biom -o ${TMPDIR}/uparse{}/Stats.{}Merge.otu_table.txt;
 if [ $? -eq 0 ];
 then echo "biom {} Stats run successful";

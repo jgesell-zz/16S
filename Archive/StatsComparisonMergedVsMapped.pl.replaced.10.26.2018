@@ -90,16 +90,16 @@ foreach my $sample (sort {($reads->{$a}->{'mapped'} + ($reads->{$a}->{'raw'} - $
 
 print "\n\n";
 print "Raw Stats\n";
-my $capture = `cat tempraw | ${GITREPO}/Miscellaneous/listStats.pl`;
+my $capture = `cat tempraw | ~mcwong/listStats.pl`;
 print "$capture";
 `rm tempraw`;
 print "\n\n";
 print "Merged Stats:\n";
-$capture = `cat tempmerge | ${GITREPO}/Miscellaneous/listStats.pl`;
+$capture = `cat tempmerge | ~mcwong/listStats.pl`;
 print "$capture";
 `rm tempmerge`;
 print "\n\n";
 print "Mapped Stats:\n";
-$capture = `cat temppick | ${GITREPO}/Miscellaneous/listStats.pl`;
+$capture = `cat temppick | ~mcwong/listStats.pl`;
 print "$capture";
 `rm temppick`;

@@ -59,8 +59,8 @@ cat ${READSDIR}/../../${PROJECTID}.barcodeCounts.txt | grep -f ${READSDIR}/../Sa
 wait;
 
 #filter out phiX bleed
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/Merged_Reads.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq &
-bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p ${THREADSPLIT} --un ${TMPDIR}/Raw_Merged_Reads.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq &
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.strict.fq --end-to-end --very-sensitive --reorder -p 1 --un ${TMPDIR}/Merged_Reads.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.strict.fq &
+bowtie2 -x ${PHIXDB} -U ${TMPDIR}/seqs.raw.fq --end-to-end --very-sensitive --reorder -p 1 --un ${TMPDIR}/Raw_Merged_Reads.fq -S /dev/null 2>&1 && rm ${TMPDIR}/seqs.raw.fq &
 wait;
 
 #construct the fastas for uparse
@@ -153,8 +153,8 @@ pbzip2 -f -p${THREADS} ${TMPDIR}/Raw_Read3.fq;
 pbzip2 -f -p${THREADS} ${TMPDIR}/Merged_Reads.fq;
 
 #recover barcodes for deliverables
-${GITREPO}/Miscellaneous/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2 &
-${GITREPO}/Miscellaneous/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2 &
+${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Raw_Read1.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Raw_Read2_Barcodes.fq.bz2 &
+${WONGGITREPO}/16S_workflows/recoverBarcodesForRaw.pl ${TMPDIR}/Merged_Reads.fq.bz2 ${READSDIR}/../../${PROJECTID}Barcodes/Project_${PROJECTID}/Sample_${PROJECTID}/${PROJECTID}_NoIndex_L001_R2_001.fastq.gz | pbzip2 -p${THREADSPLIT} -c > ${TMPDIR}/Merged_Barcodes.fq.bz2 &
 smallJobs=`jobs -p | grep -v "${bigJob}"`;
 wait ${smallJobs};
 
@@ -166,7 +166,7 @@ wait;
 biom convert -i ${READSDIR}/../../Deliverables/OTU_Table.biom -o ${READSDIR}/../../Deliverables/OTU_Table.tsv --to-tsv --header-key taxonomy;
 /cmmr/bin/Rscript /cmmr/bin/deliver_folder.r -f ${READSDIR}/../../Deliverables -t ${SILVA}/silva_V4.tre -n ${THREADS};
 cat ${READSDIR}/../../Deliverables/Read_QC.txt | cut -f1 | head -n -33 > ${READSDIR}/../../Deliverables/Mapping_File_Template.csv;
-chmod -R 775 ${READSDIR}/../../Deliverables;
+chmod -R 755 ${READSDIR}/../../Deliverables;
 if [ -r "${READSDIR}/../../Deliverables/ProjectData.rds" ];
 then collab=`readlink -e ${READSDIR} | rev | cut -f4 -d "/" | rev`;
 pool=`readlink -e ${READSDIR} | rev | cut -f3 -d "/" | rev`;
